@@ -12,6 +12,7 @@
 #include <math.h>
 #include <stm32f4xx.h>
 #include "circular_buffer.h"
+#include "motor_control.h"
 
 #define UART_Port GPIOA
 #define TX_Pin    2     //GPIO_PIN_2
@@ -27,6 +28,7 @@
 
 #define ODOM_TRANSMIT 0x4F
 #define TOF_TRANSMIT  0x54
+#define ACK_TRANSMIT 0x41
 #define SPEED_RECEIVE 0x53
 #define INIT_RECEIVE 0x49
 

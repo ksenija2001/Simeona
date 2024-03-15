@@ -87,14 +87,12 @@ int main(void)
   MX_GPIO_Init();
   USART2_Init();
   UART_Interrupt_Init();
-
   PID_Odom_Interrupt_Init();
-
   Motors_Init();
-
+  Encoders_Init();
 
    Set_Motor_Direction(1, -1);
-   Set_Motor_PWM(0, 500);
+   Set_Motor_PWM(0, 0);
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */

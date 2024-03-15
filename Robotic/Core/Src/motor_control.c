@@ -9,15 +9,17 @@
 
 unsigned int left_PWM;
 unsigned int right_PWM;
-float target_left_RPM;
-float target_right_RPM;
+float target_left_RPM = 0;
+float target_right_RPM = 0;
 
-uint32_t interrupt_counter = 0;
+volatile uint32_t interrupt_counter = 0;
+float odom[3];
 
+
+// TIM2 CH1 and CH2 configuration as PWM output
+// Driver direction pins configuration
 void Motors_Init()
 {
-	// TIM2 CH1 and CH2 configuration as PWM output
-
 	// Enabe GPIOA (PWM port) clock source
 	RCC->AHB1ENR |= ( RCC_AHB1ENR_GPIOAEN );
 
@@ -60,7 +62,6 @@ void Motors_Init()
 	PWM_Tim->CR1 |= (0b1 << TIM_CR1_CEN_Pos);
 
 
-	// Driver direction pins configuration
 
 	// Enable GPIOB and GPIOC clock source
 	// (GPIOA is enabled above)
@@ -92,19 +93,15 @@ void Motors_Init()
 	AI2_Port->OTYPER &=  ~(0b1 << AI2_Pin);
 }
 
+// Configures timer TIM11 with interrupt every 10ms which executes
+// PID computation and updates odometry data
 void PID_Odom_Interrupt_Init()
 {
-	// Lower priority than UART but higher than everything else in pre-emtion group 1
+	// Lower priority than UART IRQHandler and UART buffer checking
 	uint32_t tim10_pri_encoding = NVIC_EncodePriority(0, 1, 2);
 
 	// Clock source for TIM10
 	RCC->APB2ENR |= ( RCC_APB2ENR_TIM10EN );
-
-	// Setup the NVIC to enable interrupts.
-	NVIC_SetPriorityGrouping( 0 );
-	// UART receive interrupts should be high priority.
-	NVIC_SetPriority( TIM1_UP_TIM10_IRQn, tim10_pri_encoding );
-	NVIC_EnableIRQ( TIM1_UP_TIM10_IRQn );
 
 	// Clock setup for TIM10, 10ms
 	PID_ODOM_Tim->PSC = 11;
@@ -118,25 +115,27 @@ void PID_Odom_Interrupt_Init()
 
 	// Enable counter for TIM10
 	PID_ODOM_Tim->CR1 |= ( TIM_CR1_CEN );
+
+	// Setup the NVIC to enable interrupts.
+	NVIC_SetPriorityGrouping( 0 );
+	NVIC_SetPriority( TIM1_UP_TIM10_IRQn, tim10_pri_encoding );
+	NVIC_EnableIRQ( TIM1_UP_TIM10_IRQn );
 }
 
 void TIM1_UP_TIM10_IRQHandler(void)
-{
-//	// Disable counter for TIM10
-//	TIM10->CR1 &= ~( TIM_CR1_CEN );
-
+{;
 	interrupt_counter++;
 
 	// Calculates new position and orientation based on encoder output
 	// and sends odometry data via UART
 	if( interrupt_counter % ODOM_TIME == 0){
 		Send_Byte('2');
-//		Read_Encoders();
-//
-//		odom[0] = x;
-//		odom[1] = y;
-//		odom[2] = theta;
-//		Send_Command(ODOM_TRANSMIT, odom, sizeof(odom));
+		Read_Encoders();
+
+		odom[0] = x;
+		odom[1] = y;
+		odom[2] = theta;
+		Send_Command(ODOM_TRANSMIT, odom, sizeof(odom));
 	}
 
 	// Calculates speed loop PID and sends the output to the driver
@@ -145,17 +144,18 @@ void TIM1_UP_TIM10_IRQHandler(void)
 		// Speed_Loop();
 	}
 
-//	// Enable counter for TIM10
-//	TIM10->CR1 |= ( TIM_CR1_CEN );
-
+	// Clears interrupt flag so that other interrupts can work
+	PID_ODOM_Tim->SR &= ~TIM_SR_UIF;
 }
 
+// Sets target speed for speed loop
 void Set_Motor_Speed(float left, float right)
 {
 	target_left_RPM = left;
 	target_right_RPM = right;
 }
 
+// Computes PID control for reaching target speeds
 void Speed_Loop()
 {
 	// TODO PID
@@ -164,6 +164,7 @@ void Speed_Loop()
 	Set_Motor_PWM(abs(left_PWM), abs(right_PWM));
 }
 
+// Changes motor direction based on sign of received speeds
 void Set_Motor_Direction(int left, int right)
 {
 	if (left < 0){ // counter clockwise
@@ -185,6 +186,7 @@ void Set_Motor_Direction(int left, int right)
 	}
 }
 
+// Sets motor PWM value caclulated in speed loop
 void Set_Motor_PWM(unsigned int left, unsigned int right)
 {
 	// CCR1 value determines the duty cycle of the
@@ -197,6 +199,7 @@ void Set_Motor_PWM(unsigned int left, unsigned int right)
 	PWM_Tim->CCR2 = right;
 }
 
+// Sets or resets a pin
 void Set_Pin(GPIO_TypeDef* port, int pin, int value){
 	if (value > 0) port->BSRR |= (0b1 << pin);
 	else port->BSRR |= (0b1 << (pin + 16));

@@ -7,7 +7,7 @@
 
 #include "uart.h"
 
-uint32_t uart_interrupt_counter = 0;
+volatile uint32_t uart_interrupt_counter = 0;
 
 uint8_t in_buffer[BUFFER_SIZE + 1];
 uint8_t out_buffer[BUFFER_SIZE + 1];
@@ -84,20 +84,14 @@ void USART2_IRQHandler(void)
 	}
 }
 
+// Configures timer TIM10 with interrupt every 1ms which check input buffer
 void UART_Interrupt_Init()
 {
-	// Lower priority than UART but higher than everything else in pre-emtion group 1
+	// Lower priority than UART IRQHandler, higher priority than PID
 	uint32_t tim11_pri_encoding = NVIC_EncodePriority(0, 1, 1);
 
 	// Clock source for TIM11
 	RCC->APB2ENR |= ( RCC_APB2ENR_TIM11EN );
-
-	// Setup the NVIC to enable interrupts.
-	NVIC_SetPriorityGrouping( 0 );
-
-	// UART receive interrupts should be high priority.
-	NVIC_SetPriority( TIM1_TRG_COM_TIM11_IRQn, tim11_pri_encoding );
-	NVIC_EnableIRQ( TIM1_TRG_COM_TIM11_IRQn );
 
 	// Clock setup for TIM11, 1ms
 	UART_Tim->PSC = 1;
@@ -111,15 +105,26 @@ void UART_Interrupt_Init()
 
 	// Enable counter for TIM11
 	UART_Tim->CR1 |= ( TIM_CR1_CEN );
+
+	// Enable interrupt
+	NVIC_SetPriorityGrouping( 0 );
+	NVIC_SetPriority( TIM1_TRG_COM_TIM11_IRQn, tim11_pri_encoding );
+	NVIC_EnableIRQ( TIM1_TRG_COM_TIM11_IRQn );
 }
 
+// Checks input buffer for messages from connected device
 void TIM1_TRG_COM_TIM11_IRQHandler(void){
 
 	uart_interrupt_counter++;
 
 	if (uart_interrupt_counter % UART_TIME == 0){
 		Send_Byte('1');
+		// TODO read buffer and discard message if it isn't valid
+		// TODO send acknowledge to the connected device
 	}
+
+	// Clears interrupt flag so that other interrupts can work
+	UART_Tim->SR &= ~TIM_SR_UIF;
 }
 
 // Sends a character over UART to the connected device
@@ -129,7 +134,7 @@ void Send_Byte(uint8_t data)
 	USART2->DR = data;
 }
 
-// Reads output buffer and sends
+// Sends contents of output buffer to the connected device
 void Send_Buffer()
 {
 	send_data = buffer_read(&out_buf);
@@ -140,12 +145,13 @@ void Send_Buffer()
 	}
 }
 
+// Returns a complete message from input buffer if it si valid
 uint8_t* Read_Buffer()
 {
 	first = buffer_check(&in_buf, in_buf.head);
 	len   = buffer_check(&in_buf, in_buf.head + 2);
 	last  = buffer_check(&in_buf, in_buf.head + len);
-	if(first == START && last == STOP){
+	if(first == START && last == STOP && len > 0){
 		for(uint8_t i=0; i<len; i++){
 			recv_data[i] = buffer_read(&in_buf);
 		}
@@ -156,6 +162,7 @@ uint8_t* Read_Buffer()
 	return &null;
 }
 
+// Constructs a message and sends it through the output buffer to the connected device
 void Send_Command(uint8_t code, float value[], uint8_t len)
 {
 	buffer_write(&out_buf, START);
