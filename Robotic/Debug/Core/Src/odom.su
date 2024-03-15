@@ -1,0 +1,3 @@
+../Core/Src/odom.c:26:6:Encoders_Init	4	static
+../Core/Src/odom.c:84:6:Read_Encoders	16	static
+../Core/Src/odom.c:105:6:Reset_Encoders	16	static
