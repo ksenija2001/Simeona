@@ -1,5 +1,6 @@
 Core/Src/motor_control.o: ../Core/Src/motor_control.c \
  ../Core/Inc/motor_control.h ../Core/Inc/odom.h \
+ ../Core/Inc/struct_types.h \
  ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h \
  ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f411xe.h \
  ../Drivers/CMSIS/Include/core_cm4.h \
@@ -29,6 +30,7 @@ Core/Src/motor_control.o: ../Core/Src/motor_control.c \
  ../Core/Inc/motor_control.h
 ../Core/Inc/motor_control.h:
 ../Core/Inc/odom.h:
+../Core/Inc/struct_types.h:
 ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h:
 ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f411xe.h:
 ../Drivers/CMSIS/Include/core_cm4.h:

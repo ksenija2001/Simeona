@@ -7,90 +7,115 @@
 
 #include "motor_control.h"
 
-unsigned int left_PWM;
-unsigned int right_PWM;
-float target_left_RPM = 0;
-float target_right_RPM = 0;
+float q0;
+float q1;
+float q2;
 
 volatile uint32_t interrupt_counter = 0;
-float odom[3];
+float send_odom[3];
 
+sOutput_t BI2  = { .port = GPIOB, .pin = 10 };
+sOutput_t BI1  = { .port = GPIOC, .pin = 7 };
+sOutput_t AI2  = { .port = GPIOA, .pin = 5};
+sOutput_t AI1  = { .port = GPIOB, .pin = 6};
+sOutput_t PWMA = { .port = GPIOA, .pin = 0};
+sOutput_t PWMB = { .port = GPIOA, .pin = 1};
+
+sMotor_t left_motor = {
+		.target_speed = 0,
+		.current_speed = 0,
+		.control_PWM = 0,
+		.errors = {0, 0, 0},
+		.Kp = 3,
+		.Ki = 0.01,
+		.Kd = 0.01,
+};
+sMotor_t right_motor= {
+		.target_speed = 0,
+		.current_speed = 0,
+		.control_PWM = 0,
+		.errors = {0, 0, 0},
+		.Kp = 3,
+		.Ki = 0.01,
+		.Kd = 0.01,
+};
 
 // TIM2 CH1 and CH2 configuration as PWM output
 // Driver direction pins configuration
 void Motors_Init()
 {
-	// Enabe GPIOA (PWM port) clock source
+	left_motor.Compute_PID = Compute_PID;
+	right_motor.Compute_PID = Compute_PID;
+
+	// Enabe GPIOA (PWM port), GPIOB and GPIOC clock source
 	RCC->AHB1ENR |= ( RCC_AHB1ENR_GPIOAEN );
+	RCC->AHB1ENR |= ( RCC_AHB1ENR_GPIOBEN );
+	RCC->AHB1ENR |= ( RCC_AHB1ENR_GPIOCEN );
 
 	// Enable TIM2 (PWM source) clock source - 84Mhz
 	RCC->APB1ENR |= ( RCC_APB1ENR_TIM2EN );
 
-	// Set TIM2 channel pins PA0 (CH1) and PA1 (CH2)
+	// Set PWM source channel pins PA0 (CH1) and PA1 (CH2)
 	// to alternate function mode AF1
-	PWM_Port->MODER &= ~(0b11 << 2*PWMA_Pin | 0b11 << 2*PWMB_Pin);
-	PWM_Port->MODER |=  (0b10 << 2*PWMA_Pin | 0b10 << 2*PWMB_Pin);
+	PWMA.port->MODER &= ~(0b11 << 2*PWMA.pin);
+	PWMA.port->MODER |=  (0b10 << 2*PWMA.pin);
+	PWMB.port->MODER &= ~(0b11 << 2*PWMB.pin);
+	PWMB.port->MODER |=  (0b10 << 2*PWMB.pin);
 
-	PWM_Port->AFR[0] &= ~(0b1111 << 4*PWMA_Pin | 0b1111 << 4*PWMB_Pin);
-	PWM_Port->AFR[0] |=  (0b0001 << 4*PWMA_Pin | 0b0001 << 4*PWMB_Pin);
+	PWMA.port->AFR[0] &= ~(0b1111 << 4*PWMA.pin);
+	PWMA.port->AFR[0] |=  (0b0001 << 4*PWMA.pin);
+	PWMB.port->AFR[0] &= ~(0b1111 << 4*PWMB.pin);
+	PWMB.port->AFR[0] |=  (0b0001 << 4*PWMB.pin);
 
 	// Autoreload value determines the frequency of
 	// the PWM signal - 84MHz -> 20kHz
-	PWM_Tim->PSC = 1 - 1;
-	PWM_Tim->ARR = PWM_ARR;
+	TIM2->PSC = 1 - 1;
+	TIM2->ARR = PWM_ARR;
 
 	// PWM mode 1 - channel is active as long as
 	// TIM2->CNT < TIM2->CCR1 - during the timer period
-	PWM_Tim->CCMR1 &= ~(0b111 << TIM_CCMR1_OC1M_Pos | 0b111 << TIM_CCMR1_OC2M_Pos);
-	PWM_Tim->CCMR1 |=  (0b110 << TIM_CCMR1_OC1M_Pos | 0b110 << TIM_CCMR1_OC2M_Pos);
+	TIM2->CCMR1 &= ~(0b111 << TIM_CCMR1_OC1M_Pos | 0b111 << TIM_CCMR1_OC2M_Pos);
+	TIM2->CCMR1 |=  (0b110 << TIM_CCMR1_OC1M_Pos | 0b110 << TIM_CCMR1_OC2M_Pos);
 
 	// Enable preload for TIM2
-	PWM_Tim->CCMR1 |= (0b1 << TIM_CCMR1_OC1PE_Pos | 0b1 << TIM_CCMR1_OC2PE_Pos);
+	TIM2->CCMR1 |= (0b1 << TIM_CCMR1_OC1PE_Pos | 0b1 << TIM_CCMR1_OC2PE_Pos);
 
 	// Enable autoreload for TIM2
-	PWM_Tim->CR1 |= (0b1 << TIM_CR1_ARPE_Pos);
+	TIM2->CR1 |= (0b1 << TIM_CR1_ARPE_Pos);
 
 	// Enable automatic update of registers
-	PWM_Tim->EGR |= (0b1 << TIM_EGR_UG_Pos);
+	TIM2->EGR |= (0b1 << TIM_EGR_UG_Pos);
 
 	// Enable capture/compare as output
 	// (PWM output to driver) for CH1 and CH2
 	// Default falling edge mode
-	PWM_Tim->CCER |= (0b1 << TIM_CCER_CC1E_Pos | 0b1 << TIM_CCER_CC2E_Pos);
+	TIM2->CCER |= (0b1 << TIM_CCER_CC1E_Pos | 0b1 << TIM_CCER_CC2E_Pos);
 
 	// Enable PWM generation in default edge aligned mode
-	PWM_Tim->CR1 |= (0b1 << TIM_CR1_CEN_Pos);
+	TIM2->CR1 |= (0b1 << TIM_CR1_CEN_Pos);
 
 
-
-	// Enable GPIOB and GPIOC clock source
-	// (GPIOA is enabled above)
-	RCC->AHB1ENR |= ( RCC_AHB1ENR_GPIOBEN );
-	RCC->AHB1ENR |= ( RCC_AHB1ENR_GPIOCEN );
 
 	// Configure pins for driver direction as
 	// general purpose output pins
-	BI2_Port->MODER &= ~(0b11 << 2*BI2_Pin);
-	BI2_Port->MODER |=  (0b01 << 2*BI2_Pin);
+	BI2.port->MODER &= ~(0b11 << 2*BI2.pin);
+	BI2.port->MODER |=  (0b01 << 2*BI2.pin);
 
-	BI1_Port->MODER &= ~(0b11 << 2*BI1_Pin);
-	BI1_Port->MODER |=  (0b01 << 2*BI1_Pin);
+	BI1.port->MODER &= ~(0b11 << 2*BI1.pin);
+	BI1.port->MODER |=  (0b01 << 2*BI1.pin);
 
-	AI1_Port->MODER &= ~(0b11 << 2*AI1_Pin);
-	AI1_Port->MODER |=  (0b01 << 2*AI1_Pin);
+	AI1.port->MODER &= ~(0b11 << 2*AI1.pin);
+	AI1.port->MODER |=  (0b01 << 2*AI1.pin);
 
-	AI2_Port->MODER &= ~(0b11 << 2*AI2_Pin);
-	AI2_Port->MODER |=  (0b01 << 2*AI2_Pin);
+	AI2.port->MODER &= ~(0b11 << 2*AI2.pin);
+	AI2.port->MODER |=  (0b01 << 2*AI2.pin);
 
 	// Configure pins for driver direction as
 	// output push pull (reset state)
-	BI2_Port->OTYPER &=  ~(0b1 << BI2_Pin);
-
-	BI1_Port->OTYPER &=  ~(0b1 << BI1_Pin);
-
-	AI1_Port->OTYPER &=  ~(0b1 << AI1_Pin);
-
-	AI2_Port->OTYPER &=  ~(0b1 << AI2_Pin);
+	BI2.port->OTYPER &=  ~(0b1 << BI2.pin);
+	BI1.port->OTYPER &=  ~(0b1 << BI1.pin);
+	AI1.port->OTYPER &=  ~(0b1 << AI1.pin);
+	AI2.port->OTYPER &=  ~(0b1 << AI2.pin);
 }
 
 // Configures timer TIM11 with interrupt every 10ms which executes
@@ -104,17 +129,17 @@ void PID_Odom_Interrupt_Init()
 	RCC->APB2ENR |= ( RCC_APB2ENR_TIM10EN );
 
 	// Clock setup for TIM10, 10ms
-	PID_ODOM_Tim->PSC = 11;
-	PID_ODOM_Tim->ARR = 60000 - 1;
+	TIM10->PSC = 13 - 1;
+	TIM10->ARR = 60000 - 1;
 
 	// Enable immediate update of register on counter
-	PID_ODOM_Tim->EGR |= ( TIM_EGR_UG );
+	TIM10->EGR |= ( TIM_EGR_UG );
 
 	// Enable interrupts for TIM10
-	PID_ODOM_Tim->DIER |= ( TIM_DIER_UIE );
+	TIM10->DIER |= ( TIM_DIER_UIE );
 
 	// Enable counter for TIM10
-	PID_ODOM_Tim->CR1 |= ( TIM_CR1_CEN );
+	TIM10->CR1 |= ( TIM_CR1_CEN );
 
 	// Setup the NVIC to enable interrupts.
 	NVIC_SetPriorityGrouping( 0 );
@@ -124,65 +149,78 @@ void PID_Odom_Interrupt_Init()
 
 void TIM1_UP_TIM10_IRQHandler(void)
 {;
-	interrupt_counter++;
+	interrupt_counter += 10;
 
 	// Calculates new position and orientation based on encoder output
 	// and sends odometry data via UART
-	if( interrupt_counter % ODOM_TIME == 0){
-		Send_Byte('2');
-		Read_Encoders();
+	if( interrupt_counter % ODOM_TIME == 0 ){
+		//Send_Byte('2');
+		sOdom_t* odom = Read_Encoders();
 
-		odom[0] = x;
-		odom[1] = y;
-		odom[2] = theta;
-		Send_Command(ODOM_TRANSMIT, odom, sizeof(odom));
+		send_odom[0] = odom->x;
+		send_odom[1] = odom->y;
+		send_odom[2] = odom->theta;
+
+		left_motor.current_speed = odom->left_speed;
+		right_motor.current_speed = odom->right_speed;
+
+		Send_Command(ODOM_TRANSMIT, send_odom, sizeof(send_odom));
 	}
 
 	// Calculates speed loop PID and sends the output to the driver
-	if( interrupt_counter % PID_TIME == 0){
-		Send_Byte('4');
-		// Speed_Loop();
+	if( interrupt_counter % PID_TIME == 0 ){
+		//Send_Byte('4');
+		left_motor.Compute_PID(&left_motor);
+		right_motor.Compute_PID(&right_motor);
+
+		Set_Motor_Direction(left_motor.control_PWM, right_motor.control_PWM);
+		Set_Motor_PWM(abs(left_motor.control_PWM), abs(right_motor.control_PWM));
 	}
 
 	// Clears interrupt flag so that other interrupts can work
-	PID_ODOM_Tim->SR &= ~TIM_SR_UIF;
+	TIM10->SR &= ~TIM_SR_UIF;
 }
 
 // Sets target speed for speed loop
 void Set_Motor_Speed(float left, float right)
 {
-	target_left_RPM = left;
-	target_right_RPM = right;
+	left_motor.target_speed = left;
+	right_motor.target_speed = right;
 }
 
-// Computes PID control for reaching target speeds
-void Speed_Loop()
-{
-	// TODO PID
+void Compute_PID(sMotor_t *self){
+	self->errors[2] = self->errors[1];
+	self->errors[1] = self->errors[0];
+	self->errors[0] = self->target_speed - self->current_speed;
 
-	Set_Motor_Direction(left_PWM, right_PWM);
-	Set_Motor_PWM(abs(left_PWM), abs(right_PWM));
+	q0 = self->Kp + self->Kd/PID_TIME;
+	q1 = self->Ki*PID_TIME - 2*self->Kd/PID_TIME - self->Kp;
+	q2 = - self->Kd/PID_TIME;
+
+	self->control_PWM += q0 * self->errors[0] + q1 * self->errors[1] + q2 * self->errors[2];
+
+	// return self->control_PWM;
 }
 
 // Changes motor direction based on sign of received speeds
 void Set_Motor_Direction(int left, int right)
 {
-	if (left < 0){ // counter clockwise
-		Set_Pin(AI1_Port, AI1_Pin, 0);
-		Set_Pin(AI2_Port, AI2_Pin, 1);
+	if (left > 0){ // counter clockwise
+		Set_Pin(AI1, 0);
+		Set_Pin(AI2, 1);
 	}
 	else{ // clockwise
-		Set_Pin(AI1_Port, AI1_Pin, 1);
-		Set_Pin(AI2_Port, AI2_Pin, 0);
+		Set_Pin(AI1, 1);
+		Set_Pin(AI2, 0);
 	}
 
-	if (right < 0){ // counter clockwise
-		Set_Pin(BI1_Port, BI1_Pin, 0);
-		Set_Pin(BI2_Port, BI2_Pin, 1);
+	if (right > 0){ // counter clockwise
+		Set_Pin(BI1, 0);
+		Set_Pin(BI2, 1);
 	}
 	else{ // clockwise
-		Set_Pin(BI1_Port, BI1_Pin, 1);
-		Set_Pin(BI2_Port, BI2_Pin, 0);
+		Set_Pin(BI1, 1);
+		Set_Pin(BI2, 0);
 	}
 }
 
@@ -195,12 +233,12 @@ void Set_Motor_PWM(unsigned int left, unsigned int right)
 	if (right > PWM_ARR) right = PWM_ARR;
 
 	// TODO check which motor is which
-	PWM_Tim->CCR1 = left;
-	PWM_Tim->CCR2 = right;
+	TIM2->CCR1 = left;
+	TIM2->CCR2 = right;
 }
 
 // Sets or resets a pin
-void Set_Pin(GPIO_TypeDef* port, int pin, int value){
-	if (value > 0) port->BSRR |= (0b1 << pin);
-	else port->BSRR |= (0b1 << (pin + 16));
+void Set_Pin(sOutput_t output, int value){
+	if (value > 0) output.port->BSRR |= (0b1 << output.pin);
+	else output.port->BSRR |= (0b1 << (output.pin + 16));
 }

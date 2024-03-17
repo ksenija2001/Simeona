@@ -8,7 +8,7 @@
 ../Core/Src/uart.c:47:6:USART2_Init	16	static
 ../Core/Src/uart.c:79:6:USART2_IRQHandler	8	static
 ../Core/Src/uart.c:88:6:UART_Interrupt_Init	16	static
-../Core/Src/uart.c:116:6:TIM1_TRG_COM_TIM11_IRQHandler	8	static
+../Core/Src/uart.c:116:6:TIM1_TRG_COM_TIM11_IRQHandler	4	static
 ../Core/Src/uart.c:131:6:Send_Byte	16	static
 ../Core/Src/uart.c:138:6:Send_Buffer	8	static
 ../Core/Src/uart.c:149:10:Read_Buffer	24	static

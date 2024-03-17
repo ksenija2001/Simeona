@@ -24,7 +24,8 @@ Core/Src/stm32f4xx_hal_msp.o: ../Core/Src/stm32f4xx_hal_msp.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h \
- ../Core/Inc/motor_control.h ../Core/Inc/odom.h ../Core/Inc/uart.h \
+ ../Core/Inc/motor_control.h ../Core/Inc/odom.h \
+ ../Core/Inc/struct_types.h ../Core/Inc/uart.h \
  ../Core/Inc/circular_buffer.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -54,5 +55,6 @@ Core/Src/stm32f4xx_hal_msp.o: ../Core/Src/stm32f4xx_hal_msp.c \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h:
 ../Core/Inc/motor_control.h:
 ../Core/Inc/odom.h:
+../Core/Inc/struct_types.h:
 ../Core/Inc/uart.h:
 ../Core/Inc/circular_buffer.h:

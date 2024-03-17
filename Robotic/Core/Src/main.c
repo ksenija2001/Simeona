@@ -54,8 +54,16 @@ static void MX_GPIO_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+sOdom_t init_odom = {
+		.x = 0,
+		.y = 0,
+		.theta = M_PI/2,
+		.left_speed = 0,
+		.right_speed = 0
+};
 
 /* USER CODE END 0 */
+
 
 /**
   * @brief  The application entry point.
@@ -91,8 +99,9 @@ int main(void)
   Motors_Init();
   Encoders_Init();
 
-   Set_Motor_Direction(1, -1);
-   Set_Motor_PWM(0, 0);
+  Reset_Encoders(&init_odom);
+
+  Set_Motor_Speed(300, 300);
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -101,6 +110,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  //Read_Encoders();
     /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
   }

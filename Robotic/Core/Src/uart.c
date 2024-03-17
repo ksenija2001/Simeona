@@ -118,7 +118,7 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 	uart_interrupt_counter++;
 
 	if (uart_interrupt_counter % UART_TIME == 0){
-		Send_Byte('1');
+		//Send_Byte('1');
 		// TODO read buffer and discard message if it isn't valid
 		// TODO send acknowledge to the connected device
 	}
