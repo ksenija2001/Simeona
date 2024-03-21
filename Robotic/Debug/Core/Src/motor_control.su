@@ -6,7 +6,7 @@
 ../Core/Src/motor_control.c:123:6:PID_Odom_Interrupt_Init	16	static
 ../Core/Src/motor_control.c:150:6:TIM1_UP_TIM10_IRQHandler	16	static
 ../Core/Src/motor_control.c:185:6:Set_Motor_Speed	16	static
-../Core/Src/motor_control.c:191:6:Compute_PID	16	static
-../Core/Src/motor_control.c:206:6:Set_Motor_Direction	16	static
-../Core/Src/motor_control.c:228:6:Set_Motor_PWM	16	static
-../Core/Src/motor_control.c:241:6:Set_Pin	24	static
+../Core/Src/motor_control.c:192:6:Compute_PID	16	static
+../Core/Src/motor_control.c:205:6:Set_Motor_Direction	16	static
+../Core/Src/motor_control.c:227:6:Set_Motor_PWM	16	static
+../Core/Src/motor_control.c:240:6:Set_Pin	24	static

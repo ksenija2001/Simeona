@@ -34,6 +34,10 @@ uint8_t size  = 0;
 
 uint8_t send_data = 0;
 uint8_t recv_data[13];
+float left_speed = 0;
+float right_speed = 0;
+uint8_t bad_msg_counter = 0;
+
 
 uint8_t c = 0;
 uint8_t null = '\0';
@@ -94,7 +98,7 @@ void UART_Interrupt_Init()
 	RCC->APB2ENR |= ( RCC_APB2ENR_TIM11EN );
 
 	// Clock setup for TIM11, 1ms
-	UART_Tim->PSC = 1;
+	UART_Tim->PSC = 2 - 1;
 	UART_Tim->ARR = 42000 - 1;
 
 	// Enable immediate update of register on counter
@@ -120,6 +124,34 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 	if (uart_interrupt_counter % UART_TIME == 0){
 		//Send_Byte('1');
 		// TODO read buffer and discard message if it isn't valid
+		uint8_t* recv = Read_Buffer();
+		if (*recv != null){
+			switch(recv[1]){
+			case SPEED_RECEIVE:
+				// left speed
+				convert_float.u[0] = recv[3];
+				convert_float.u[1] = recv[4];
+				convert_float.u[2] = recv[5];
+				convert_float.u[3] = recv[6];
+
+				left_speed = convert_float.f;
+
+				// left speed
+				convert_float.u[0] = recv[7];
+				convert_float.u[1] = recv[8];
+				convert_float.u[2] = recv[9];
+				convert_float.u[3] = recv[10];
+
+				right_speed = convert_float.f;
+
+				Set_Motor_Speed(left_speed, right_speed);
+				break;
+			case INIT_RECEIVE:
+				break;
+			default:
+				break;
+			}
+		}
 		// TODO send acknowledge to the connected device
 	}
 
@@ -152,13 +184,11 @@ uint8_t* Read_Buffer()
 	len   = buffer_check(&in_buf, in_buf.head + 2);
 	last  = buffer_check(&in_buf, in_buf.head + len);
 	if(first == START && last == STOP && len > 0){
-		for(uint8_t i=0; i<len; i++){
+		for(uint8_t i=0; i<len; i++)
 			recv_data[i] = buffer_read(&in_buf);
-		}
-
 		return recv_data;
 	}
-
+	bad_msg_counter++;
 	return &null;
 }
 

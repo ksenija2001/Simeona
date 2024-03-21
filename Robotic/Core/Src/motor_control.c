@@ -26,7 +26,7 @@ sMotor_t left_motor = {
 		.current_speed = 0,
 		.control_PWM = 0,
 		.errors = {0, 0, 0},
-		.Kp = 3,
+		.Kp = 5,  // 3
 		.Ki = 0.01,
 		.Kd = 0.01,
 };
@@ -35,7 +35,7 @@ sMotor_t right_motor= {
 		.current_speed = 0,
 		.control_PWM = 0,
 		.errors = {0, 0, 0},
-		.Kp = 3,
+		.Kp = 5,  // 3
 		.Ki = 0.01,
 		.Kd = 0.01,
 };
@@ -188,6 +188,7 @@ void Set_Motor_Speed(float left, float right)
 	right_motor.target_speed = right;
 }
 
+// Updates PWM control for reaching and holding target speed
 void Compute_PID(sMotor_t *self){
 	self->errors[2] = self->errors[1];
 	self->errors[1] = self->errors[0];
@@ -198,8 +199,6 @@ void Compute_PID(sMotor_t *self){
 	q2 = - self->Kd/PID_TIME;
 
 	self->control_PWM += q0 * self->errors[0] + q1 * self->errors[1] + q2 * self->errors[2];
-
-	// return self->control_PWM;
 }
 
 // Changes motor direction based on sign of received speeds

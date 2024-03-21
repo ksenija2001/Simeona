@@ -17,7 +17,7 @@
 #define WHEEL_DISTANCE 150
 #define INC_MM         0.10069207 // (WHEEL_DIAMETER*PI)/PPR
 #define INC_RAD        0.00143845 // INC_MM/WHEEL_DISTANCE
-#define ODOM_TIME      20 //ms
+#define ODOM_TIME      20         //ms
 
 void Encoders_Init();
 sOdom_t* Read_Encoders();

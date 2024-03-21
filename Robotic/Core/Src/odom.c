@@ -36,7 +36,7 @@ float delta_theta    = 0;
 
 void Encoders_Init(){
 
-	// Enable clock for portTIM3 A
+	// Enable clock for GPIOA (encoder output)
 	RCC->AHB1ENR |= ( RCC_AHB1ENR_GPIOAEN );
 
 	// Clock source for TIM3
@@ -91,6 +91,7 @@ void Encoders_Init(){
 	LEFT.tim->EGR |= (1 << 0);
 }
 
+// Calculates current position and speeds based on encoder increment readings
 sOdom_t* Read_Encoders(){
 	last_left_enc  = curr_left_enc;
 	last_right_enc = curr_right_enc;
@@ -98,22 +99,27 @@ sOdom_t* Read_Encoders(){
 	curr_left_enc  = LEFT.tim->CNT;
 	curr_right_enc = RIGHT.tim->CNT;
 
+	// The delta is calulated from increments fromm current and last encoder readings and converted to mm
+	// The cast to int16_t ensures that a jump from 0 to 65535 and vice versa won't happen
 	delta_left  = (int16_t)(curr_left_enc  - last_left_enc)  * INC_MM;
 	delta_right = (int16_t)(curr_right_enc - last_right_enc) * INC_MM;
 
+	// Distance traveled from last encoder reading
 	delta_distance = (delta_left + delta_right) / 2;
+	// Change in orientation from last encoder reading
 	delta_theta    = (delta_left - delta_right) / WHEEL_DISTANCE;
 
+	// Updated odom data
 	odom.x += delta_distance * cos(odom.theta + delta_theta/2);
 	odom.y += delta_distance * sin(odom.theta + delta_theta/2);
 	odom.theta += delta_theta;
-
 	odom.left_speed  = delta_left / ODOM_TIME * 1000; // mm/s
 	odom.right_speed = delta_right / ODOM_TIME * 1000; // mm/s
 
 	return &odom;
 }
 
+// Resets or initialized odometry data based on input parameter
 void Reset_Encoders(sOdom_t* new_odom){
 	last_left_enc  = 0;
 	last_right_enc = 0;

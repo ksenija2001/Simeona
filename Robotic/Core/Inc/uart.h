@@ -27,7 +27,6 @@
 #define STOP  0xFB
 
 #define ODOM_TRANSMIT 0x4F
-#define TOF_TRANSMIT  0x54
 #define ACK_TRANSMIT 0x41
 #define SPEED_RECEIVE 0x53
 #define INIT_RECEIVE 0x49

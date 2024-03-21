@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <stm32f4xx.h>
 
-#define PWM_ARR  4199
+#define PWM_ARR  4199 // max value for PWM defined by used timer
 #define PID_TIME 40  // ms
 
 void PID_Odom_Interrupt_Init();
