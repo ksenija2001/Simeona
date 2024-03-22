@@ -41,6 +41,7 @@ uint8_t bad_msg_counter = 0;
 
 uint8_t c = 0;
 uint8_t null = '\0';
+float ack = 1;
 
 union U_F{
 	float f;
@@ -84,7 +85,8 @@ void USART2_IRQHandler(void)
 {
 	if (USART2->SR & USART_SR_RXNE) {
 	  c = USART2->DR;
-	  buffer_write(&in_buf, c);
+	  if (c != '\r')
+		  buffer_write(&in_buf, c);
 	}
 }
 
@@ -123,7 +125,7 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 
 	if (uart_interrupt_counter % UART_TIME == 0){
 		//Send_Byte('1');
-		// TODO read buffer and discard message if it isn't valid
+		// Reads buffer and discards message if it isn't valid
 		uint8_t* recv = Read_Buffer();
 		if (*recv != null){
 			switch(recv[1]){
@@ -145,14 +147,29 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 				right_speed = convert_float.f;
 
 				Set_Motor_Speed(left_speed, right_speed);
+				bad_msg_counter = 0;
+
 				break;
 			case INIT_RECEIVE:
+
+				bad_msg_counter = 0;
+
 				break;
 			default:
+				// TODO handle message that doesn't exist
 				break;
 			}
+
+			// Sends an acknowledge for the received message to the connected device
+			Send_Command(ACK_TRANSMIT, &ack, 1);
 		}
-		// TODO send acknowledge to the connected device
+//		else if (bad_msg_counter > 3){
+//			// Discard buffer up until next valid message
+//			uint8_t temp = 1;
+//			while (buffer_check(&in_buf, in_buf.head) != START && temp != null)
+//				temp = buffer_read(&in_buf);
+//			bad_msg_counter = 0;
+//		}
 	}
 
 	// Clears interrupt flag so that other interrupts can work
@@ -177,15 +194,26 @@ void Send_Buffer()
 	}
 }
 
-// Returns a complete message from input buffer if it si valid
+uint8_t char2int(uint8_t c)
+{
+	return (c & 0xF) + ((c >> 6) | ((c >> 3) & 0x8));
+}
+
+// Returns a complete message from input buffer if it is valid
 uint8_t* Read_Buffer()
 {
-	first = buffer_check(&in_buf, in_buf.head);
-	len   = buffer_check(&in_buf, in_buf.head + 2);
-	last  = buffer_check(&in_buf, in_buf.head + len);
+	first = (char2int(buffer_check(&in_buf, in_buf.head)) << 4) |
+			(char2int(buffer_check(&in_buf, in_buf.head+1)) & 0xF);
+	len   = char2int(buffer_check(&in_buf, in_buf.head+4))*10 +
+			char2int(buffer_check(&in_buf, in_buf.head+4+1));
+	last  = (char2int(buffer_check(&in_buf, in_buf.head+len)) << 4) |
+			(char2int(buffer_check(&in_buf, in_buf.head+len+1)) & 0xF);
+
 	if(first == START && last == STOP && len > 0){
-		for(uint8_t i=0; i<len; i++)
+		for(uint8_t i=0; i<len+2; i++)
 			recv_data[i] = buffer_read(&in_buf);
+
+
 		return recv_data;
 	}
 	bad_msg_counter++;
@@ -197,7 +225,7 @@ void Send_Command(uint8_t code, float value[], uint8_t len)
 {
 	buffer_write(&out_buf, START);
 	buffer_write(&out_buf, code);
-	buffer_write(&out_buf, len + 3);
+	buffer_write(&out_buf, len + 6);
 
 	size = sizeof(value[0]);
 

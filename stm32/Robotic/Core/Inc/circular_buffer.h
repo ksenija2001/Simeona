@@ -44,7 +44,8 @@ static inline uint8_t buffer_read(circular_buff* buf)
 
 static inline uint8_t buffer_check(circular_buff* buf, uint8_t pos)
 {
-	if ((buf->head == buf->tail) || (pos < buf->head && pos > buf->tail) || (pos < buf->tail && pos > buf->head))
+	if ((buf->head == buf->tail) ||
+		(pos < buf->head && pos > buf->tail)) //||(pos < buf->tail && pos > buf->head))
 		return '\0';
 
 	uint8_t read = buf->buffer[pos];

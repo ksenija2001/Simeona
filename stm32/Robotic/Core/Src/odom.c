@@ -33,7 +33,6 @@ float delta_right = 0;
 float delta_distance = 0;
 float delta_theta    = 0;
 
-
 void Encoders_Init(){
 
 	// Enable clock for GPIOA (encoder output)
@@ -99,7 +98,7 @@ sOdom_t* Read_Encoders(){
 	curr_left_enc  = LEFT.tim->CNT;
 	curr_right_enc = RIGHT.tim->CNT;
 
-	// The delta is calulated from increments fromm current and last encoder readings and converted to mm
+	// The delta is calulated from increments from current and last encoder readings and converted to mm
 	// The cast to int16_t ensures that a jump from 0 to 65535 and vice versa won't happen
 	delta_left  = (int16_t)(curr_left_enc  - last_left_enc)  * INC_MM;
 	delta_right = (int16_t)(curr_right_enc - last_right_enc) * INC_MM;
