@@ -33,9 +33,7 @@ uint8_t last  = 0;
 uint8_t size  = 0;
 
 uint8_t send_data = 0;
-uint8_t recv_data[13];
-float left_speed = 0;
-float right_speed = 0;
+uint8_t recv[20];
 uint8_t bad_msg_counter = 0;
 
 
@@ -126,33 +124,29 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 	if (uart_interrupt_counter % UART_TIME == 0){
 		//Send_Byte('1');
 		// Reads buffer and discards message if it isn't valid
-		uint8_t* recv = Read_Buffer();
+		Read_Buffer(recv);
 		if (*recv != null){
 			switch(recv[1]){
 			case SPEED_RECEIVE:
-				// left speed
-				convert_float.u[0] = recv[3];
-				convert_float.u[1] = recv[4];
-				convert_float.u[2] = recv[5];
-				convert_float.u[3] = recv[6];
-
-				left_speed = convert_float.f;
-
-				// left speed
-				convert_float.u[0] = recv[7];
-				convert_float.u[1] = recv[8];
-				convert_float.u[2] = recv[9];
-				convert_float.u[3] = recv[10];
-
-				right_speed = convert_float.f;
-
+				float left_speed = Read_Float(recv, 3);
+				float right_speed = Read_Float(recv, 7);
 				Set_Motor_Speed(left_speed, right_speed);
 				bad_msg_counter = 0;
+				memset(recv, 0, sizeof recv);
 
 				break;
 			case INIT_RECEIVE:
-
+				sOdom_t odom = {
+						.x = Read_Float(recv, 3),
+						.y = Read_Float(recv, 7),
+						.theta = Read_Float(recv, 11),
+						.left_speed = 0,
+						.right_speed = 0
+				};
+				Reset_Encoders(&odom);
 				bad_msg_counter = 0;
+				memset(recv, 0, sizeof recv);
+
 
 				break;
 			default:
@@ -163,17 +157,28 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 			// Sends an acknowledge for the received message to the connected device
 			Send_Command(ACK_TRANSMIT, &ack, 1);
 		}
-//		else if (bad_msg_counter > 3){
-//			// Discard buffer up until next valid message
-//			uint8_t temp = 1;
-//			while (buffer_check(&in_buf, in_buf.head) != START && temp != null)
-//				temp = buffer_read(&in_buf);
-//			bad_msg_counter = 0;
-//		}
+		// If the whole message was not received in more than 30ms, discard the buffer
+		else if (*recv == null && bad_msg_counter > 3){
+			while(in_buf.head != in_buf.tail){
+				buffer_read(&in_buf);
+			}
+			bad_msg_counter = 0;
+		}
 	}
 
 	// Clears interrupt flag so that other interrupts can work
 	UART_Tim->SR &= ~TIM_SR_UIF;
+}
+
+
+float Read_Float(uint8_t msg[], uint8_t start)
+{
+	convert_float.u[0] = msg[start];
+	convert_float.u[1] = msg[start+1];
+	convert_float.u[2] = msg[start+2];
+	convert_float.u[3] = msg[start+3];
+
+	return convert_float.f;
 }
 
 // Sends a character over UART to the connected device
@@ -194,30 +199,21 @@ void Send_Buffer()
 	}
 }
 
-uint8_t char2int(uint8_t c)
-{
-	return (c & 0xF) + ((c >> 6) | ((c >> 3) & 0x8));
-}
-
 // Returns a complete message from input buffer if it is valid
-uint8_t* Read_Buffer()
+void Read_Buffer(uint8_t* recv_data)
 {
-	first = (char2int(buffer_check(&in_buf, in_buf.head)) << 4) |
-			(char2int(buffer_check(&in_buf, in_buf.head+1)) & 0xF);
-	len   = char2int(buffer_check(&in_buf, in_buf.head+4))*10 +
-			char2int(buffer_check(&in_buf, in_buf.head+4+1));
-	last  = (char2int(buffer_check(&in_buf, in_buf.head+len)) << 4) |
-			(char2int(buffer_check(&in_buf, in_buf.head+len+1)) & 0xF);
+	first = buffer_check(&in_buf, in_buf.head);
+	len   = buffer_check(&in_buf, in_buf.head+2);
+	last  = buffer_check(&in_buf, in_buf.head+len-1);
 
 	if(first == START && last == STOP && len > 0){
 		for(uint8_t i=0; i<len+2; i++)
 			recv_data[i] = buffer_read(&in_buf);
-
-
-		return recv_data;
 	}
-	bad_msg_counter++;
-	return &null;
+	else if(first == START){
+		bad_msg_counter++;
+		recv_data[0] = null;
+	}
 }
 
 // Constructs a message and sends it through the output buffer to the connected device
@@ -225,7 +221,7 @@ void Send_Command(uint8_t code, float value[], uint8_t len)
 {
 	buffer_write(&out_buf, START);
 	buffer_write(&out_buf, code);
-	buffer_write(&out_buf, len + 6);
+	buffer_write(&out_buf, len + 4);
 
 	size = sizeof(value[0]);
 
@@ -239,7 +235,6 @@ void Send_Command(uint8_t code, float value[], uint8_t len)
 	}
 
 	buffer_write(&out_buf, STOP);
-
 	Send_Buffer();
 }
 

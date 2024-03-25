@@ -26,18 +26,18 @@ sMotor_t left_motor = {
 		.current_speed = 0,
 		.control_PWM = 0,
 		.errors = {0, 0, 0},
-		.Kp = 5,  // 3
-		.Ki = 0.01,
-		.Kd = 0.01,
+		.Kp = 8,
+		.Ki = 0.08,
+		.Kd = 0.12,
 };
 sMotor_t right_motor= {
 		.target_speed = 0,
 		.current_speed = 0,
 		.control_PWM = 0,
 		.errors = {0, 0, 0},
-		.Kp = 5,  // 3
-		.Ki = 0.01,
-		.Kd = 0.01,
+		.Kp = 8,
+		.Ki = 0.08,
+		.Kd = 0.12,
 };
 
 // TIM2 CH1 and CH2 configuration as PWM output

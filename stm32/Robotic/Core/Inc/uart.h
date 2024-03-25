@@ -9,6 +9,7 @@
 #define INC_UART_H_
 
 #include <stdint.h>
+#include <string.h>
 #include <math.h>
 #include <stm32f4xx.h>
 #include "circular_buffer.h"
@@ -42,7 +43,8 @@ void UART_Interrupt_Init();
 void Send_Byte(uint8_t data);
 void Send_Buffer(void);
 void Send_Command(uint8_t code, float value[], uint8_t len);
-uint8_t* Read_Buffer();
+void Read_Buffer(uint8_t* recv_data);
+float Read_Float(uint8_t msg[], uint8_t start);
 
 #endif /* INC_UART_H_ */
 
