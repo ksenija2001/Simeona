@@ -204,7 +204,7 @@ void Read_Buffer(uint8_t* recv_data)
 {
 	first = buffer_check(&in_buf, in_buf.head);
 	len   = buffer_check(&in_buf, in_buf.head+2);
-	last  = buffer_check(&in_buf, in_buf.head+len-1);
+	last  = buffer_check(&in_buf, in_buf.head+len);
 
 	if(first == START && last == STOP && len > 0){
 		for(uint8_t i=0; i<len+2; i++)
