@@ -120,3 +120,5 @@ source /opt/ros/humble/setup.bash
 source ~/robotic_ws/install/setup.bash 
 source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash
 
+export ROS_DOMAIN_ID = 1
+

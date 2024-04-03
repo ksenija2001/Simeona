@@ -12,7 +12,7 @@ float q1;
 float q2;
 
 volatile uint32_t interrupt_counter = 0;
-float send_odom[3];
+float send_odom[5];
 
 sOutput_t BI2  = { .port = GPIOB, .pin = 10 };
 sOutput_t BI1  = { .port = GPIOC, .pin = 7 };
@@ -160,6 +160,8 @@ void TIM1_UP_TIM10_IRQHandler(void)
 		send_odom[0] = odom->x;
 		send_odom[1] = odom->y;
 		send_odom[2] = odom->theta;
+		send_odom[3] = odom->left_speed;
+		send_odom[4] = odom->right_speed;
 
 		left_motor.current_speed = odom->left_speed;
 		right_motor.current_speed = odom->right_speed;

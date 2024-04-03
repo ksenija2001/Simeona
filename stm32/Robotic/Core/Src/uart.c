@@ -122,7 +122,6 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 	uart_interrupt_counter++;
 
 	if (uart_interrupt_counter % UART_TIME == 0){
-		//Send_Byte('1');
 		// Reads buffer and discards message if it isn't valid
 		Read_Buffer(recv);
 		if (*recv != null){
@@ -155,7 +154,7 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 			}
 
 			// Sends an acknowledge for the received message to the connected device
-			Send_Command(ACK_TRANSMIT, &ack, 1);
+			Send_Command(ACK_TRANSMIT, &ack, 4);
 		}
 		// If the whole message was not received in more than 30ms, discard the buffer
 		else if (*recv == null && bad_msg_counter > 3){
@@ -191,11 +190,9 @@ void Send_Byte(uint8_t data)
 // Sends contents of output buffer to the connected device
 void Send_Buffer()
 {
-	send_data = buffer_read(&out_buf);
-
-	while(send_data != '\0'){
-		Send_Byte(send_data);
+	while(out_buf.head != out_buf.tail){
 		send_data = buffer_read(&out_buf);
+		Send_Byte(send_data);
 	}
 }
 
@@ -221,7 +218,7 @@ void Send_Command(uint8_t code, float value[], uint8_t len)
 {
 	buffer_write(&out_buf, START);
 	buffer_write(&out_buf, code);
-	buffer_write(&out_buf, len + 4);
+	buffer_write(&out_buf, len+3);
 
 	size = sizeof(value[0]);
 
