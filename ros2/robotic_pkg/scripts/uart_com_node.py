@@ -8,7 +8,6 @@ from rclpy.executors import MultiThreadedExecutor
 from robotic_interfaces.msg import Command
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import (
-    Quaternion,
     Pose,
     PoseWithCovariance,
     Twist,
@@ -98,7 +97,7 @@ class UARTComNode(Node):
         bytes_msg.insert(2, len(msg.data)*4+3)
         bytes_msg.append(STOP)
         
-        self.get_logger().info(f"{bytes_msg}")
+        #self.get_logger().info(f"{bytes_msg}")
 
         self.acknowledged = False
         while not self.acknowledged:
@@ -157,6 +156,7 @@ class UARTComNode(Node):
         x, y, z, w = quaternion_from_euler(roll, pitch, yaw) 
         p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w = x, y, z, w
         pc.pose = p
+        # TODO research covariances
         #pc.covariance = []
 
         return pc
@@ -166,8 +166,8 @@ class UARTComNode(Node):
         tc = TwistWithCovariance()
         t = Twist()
 
-        linear = 0.5*(left + right)
-        angular = (right - left)/track
+        linear  = ((left + right)/1000)/2  # m/s
+        angular = (right - left)/track     # rad/s
 
         v_x = linear*math.cos(theta)
         v_y = linear*math.sin(theta)
