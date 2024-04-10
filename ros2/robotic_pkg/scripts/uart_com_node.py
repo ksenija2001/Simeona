@@ -8,6 +8,7 @@ from rclpy.executors import MultiThreadedExecutor
 from robotic_interfaces.msg import Command
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import (
+    Quaternion,
     Pose,
     PoseWithCovariance,
     Twist,
@@ -97,7 +98,7 @@ class UARTComNode(Node):
         bytes_msg.insert(2, len(msg.data)*4+3)
         bytes_msg.append(STOP)
         
-        #self.get_logger().info(f"{bytes_msg}")
+        self.get_logger().info(f"{bytes_msg}")
 
         self.acknowledged = False
         while not self.acknowledged:
@@ -123,13 +124,13 @@ class UARTComNode(Node):
 
                         if last == STOP:
                             if code == ODOM:
-                                self.get_logger().info("ODOM")
-                                x     = float(struct.unpack('f', data_arr[0:4])[0])
-                                y     = float(struct.unpack('f', data_arr[4:8])[0])
+                                #self.get_logger().info("ODOM")
+                                x     = float(struct.unpack('f', data_arr[0:4])[0]) / 1000
+                                y     = float(struct.unpack('f', data_arr[4:8])[0]) / 1000
                                 theta = float(struct.unpack('f', data_arr[8:12])[0])
                                 left  = float(struct.unpack('f', data_arr[12:16])[0])
                                 right = float(struct.unpack('f', data_arr[16:20])[0])
-                                self.get_logger().info(f"x: {x:.3f}, y: {y:.3f}, t: {theta:.3f}")
+                                #self.get_logger().info(f"x: {x:.3f}, y: {y:.3f}, t: {theta:.3f}")
 
                                 odom = Odometry()
                                 odom.header.stamp = self.get_clock().now().to_msg()
@@ -140,7 +141,7 @@ class UARTComNode(Node):
 
                                 self._odom_publisher.publish(odom)
                             elif code == ACK:
-                                self.get_logger().info("Acknowledged")
+                                #self.get_logger().info("Acknowledged")
                                 self.acknowledged = True
 
             else:
@@ -156,7 +157,6 @@ class UARTComNode(Node):
         x, y, z, w = quaternion_from_euler(roll, pitch, yaw) 
         p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w = x, y, z, w
         pc.pose = p
-        # TODO research covariances
         #pc.covariance = []
 
         return pc
@@ -166,8 +166,11 @@ class UARTComNode(Node):
         tc = TwistWithCovariance()
         t = Twist()
 
-        linear  = ((left + right)/1000)/2  # m/s
-        angular = (right - left)/track     # rad/s
+        left = left/1000
+        right = right/1000
+
+        linear = 0.5*(left + right)
+        angular = (right - left)/track
 
         v_x = linear*math.cos(theta)
         v_y = linear*math.sin(theta)

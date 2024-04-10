@@ -2,3 +2,14 @@ uart_com_node:
   ros__parameters:
     device_name: "/dev/ttyUSB_STM"
     baudrate: 115200
+
+sllidar_node:
+  ros__parameters:
+    channel_type: "serial"
+    serial_port: "/dev/ttyUSB_LIDAR"
+    serial_baudrate: 256000
+    frame_id: "laser"
+    inverted: false
+    angle_compensate: true
+    scan_mode: "Sensitivity" #16kHz sample rate
+    scan_frequency: 10.0 # 10Hz speed of lidar

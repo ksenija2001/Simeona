@@ -18,8 +18,17 @@ def generate_launch_description():
         parameters = [config]
     )
 
+    lidar = Node(
+        package='sllidar_ros2',
+        executable='sllidar_node',
+        name='sllidar_node',
+        parameters=[config],
+        output='screen'
+    )
+
     return LaunchDescription(
         [
-            uart
+            uart,
+            lidar
         ]
     )
