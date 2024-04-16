@@ -33,6 +33,11 @@ float delta_right = 0;
 float delta_distance = 0;
 float delta_theta    = 0;
 
+float wheel_diameter = 70;
+float wheel_distance = 166.42;
+float inc_mm = 1;
+float inc_rad = 1;
+
 void Encoders_Init(){
 
 	// Enable clock for GPIOA (encoder output)
@@ -88,6 +93,9 @@ void Encoders_Init(){
 	// Enable immediate update of register on counter
 	RIGHT.tim->EGR |= (1 << 0);
 	LEFT.tim->EGR |= (1 << 0);
+
+	inc_mm = (wheel_diameter*M_PI)/PPR;
+	inc_rad = inc_mm/wheel_distance;
 }
 
 // Calculates current position and speeds based on encoder increment readings
@@ -100,13 +108,13 @@ sOdom_t* Read_Encoders(){
 
 	// The delta is calulated from increments from current and last encoder readings and converted to mm
 	// The cast to int16_t ensures that a jump from 0 to 65535 and vice versa won't happen
-	delta_left  = (int16_t)(curr_left_enc  - last_left_enc)  * INC_MM;
-	delta_right = (int16_t)(curr_right_enc - last_right_enc) * INC_MM;
+	delta_left  = (int16_t)(curr_left_enc  - last_left_enc)  * inc_mm;
+	delta_right = (int16_t)(curr_right_enc - last_right_enc) * inc_mm;
 
 	// Distance traveled from last encoder reading
 	delta_distance = (delta_left + delta_right) / 2;
 	// Change in orientation from last encoder reading
-	delta_theta    = (delta_left - delta_right) / WHEEL_DISTANCE;
+	delta_theta    = (delta_left - delta_right) / wheel_distance;
 
 	// Updated odom data
 	odom.x += delta_distance * cos(odom.theta + delta_theta/2);
@@ -130,5 +138,13 @@ void Reset_Encoders(sOdom_t* new_odom){
 	odom.theta = new_odom->theta;
 	odom.left_speed = 0;
 	odom.right_speed = 0;
+}
+
+void Config(float diameter, float distance){
+	wheel_diameter = diameter;
+	wheel_distance = distance;
+
+	inc_mm = (wheel_diameter*M_PI)/PPR;
+	inc_rad = inc_mm/wheel_distance;
 }
 

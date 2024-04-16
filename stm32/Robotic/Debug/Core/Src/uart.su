@@ -8,9 +8,9 @@
 ../Core/Src/uart.c:50:6:USART2_Init	16	static
 ../Core/Src/uart.c:82:6:USART2_IRQHandler	8	static
 ../Core/Src/uart.c:92:6:UART_Interrupt_Init	16	static
-../Core/Src/uart.c:120:6:TIM1_TRG_COM_TIM11_IRQHandler	40	static
-../Core/Src/uart.c:173:7:Read_Float	16	static
-../Core/Src/uart.c:184:6:Send_Byte	16	static
-../Core/Src/uart.c:191:6:Send_Buffer	8	static
-../Core/Src/uart.c:200:6:Read_Buffer	32	static
-../Core/Src/uart.c:217:6:Send_Command	24	static
+../Core/Src/uart.c:120:6:TIM1_TRG_COM_TIM11_IRQHandler	48	static
+../Core/Src/uart.c:179:7:Read_Float	16	static
+../Core/Src/uart.c:190:6:Send_Byte	16	static
+../Core/Src/uart.c:197:6:Send_Buffer	8	static
+../Core/Src/uart.c:206:6:Read_Buffer	32	static
+../Core/Src/uart.c:223:6:Send_Command	24	static

@@ -102,6 +102,8 @@ int main(void)
   Reset_Encoders(&init_odom);
 
   Set_Motor_Speed(0, 0);
+
+
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */

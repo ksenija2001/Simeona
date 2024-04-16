@@ -146,7 +146,13 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 				bad_msg_counter = 0;
 				memset(recv, 0, sizeof recv);
 
+				break;
+			case CONFIG_RECEIVE:
+				float diameter = Read_Float(recv, 3);
+				float distance = Read_Float(recv, 7);
+				Config(diameter, distance);
 
+				memset(recv, 0, sizeof recv);
 				break;
 			default:
 				// TODO handle message that doesn't exist

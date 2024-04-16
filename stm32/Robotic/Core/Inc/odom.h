@@ -13,14 +13,15 @@
 #include <stm32f4xx.h>
 
 #define PPR            2184 	   //4*546 inc
-#define WHEEL_DIAMETER 70
-#define WHEEL_DISTANCE 166.42
-#define INC_MM         0.10069207 // (WHEEL_DIAMETER*PI)/PPR
-#define INC_RAD        0.00143845 // INC_MM/WHEEL_DISTANCE
+//#define WHEEL_DIAMETER 70
+//#define WHEEL_DISTANCE 166.42
+//#define INC_MM         0.10069207 // (WHEEL_DIAMETER*PI)/PPR
+//#define INC_RAD        0.00143845 // INC_MM/WHEEL_DISTANCE
 #define ODOM_TIME      20         //ms
 
 void Encoders_Init();
 sOdom_t* Read_Encoders();
 void Reset_Encoders(sOdom_t* new_odom);
+void Config(float diameter, float distance);
 
 #endif /* INC_ODOM_H_ */

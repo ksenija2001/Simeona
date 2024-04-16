@@ -31,6 +31,7 @@
 #define ACK_TRANSMIT 0x41
 #define SPEED_RECEIVE 0x53
 #define INIT_RECEIVE 0x49
+#define CONFIG_RECEIVE 0x43
 
 extern circular_buff in_buf;
 extern circular_buff out_buf;

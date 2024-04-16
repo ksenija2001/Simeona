@@ -26,9 +26,16 @@ def generate_launch_description():
         output='screen'
     )
 
+    test = Node(
+        package='robotic_pkg',
+        executable='py_node.py',
+        name='py_node'
+    )
+
     return LaunchDescription(
         [
             uart,
-            lidar
+            lidar,
+            test
         ]
     )

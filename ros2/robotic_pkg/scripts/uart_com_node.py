@@ -45,12 +45,16 @@ class UARTComNode(Node):
             namespace='',
             parameters=[
                 ('device_name', rclpy.Parameter.Type.STRING),
-                ('baudrate', rclpy.Parameter.Type.INTEGER)
+                ('baudrate', rclpy.Parameter.Type.INTEGER),
+                ('wheel_distance', rclpy.Parameter.Type.DOUBLE),
+                ('wheel_diameter', rclpy.Parameter.Type.DOUBLE),
             ]
         )
 
         self._port = self.get_parameter('device_name').value
         self._baudrate = self.get_parameter('baudrate').value
+        self._wheel_dist = self.get_parameter('wheel_distance').value
+        self._wheel_diam = self.get_parameter('wheel_diameter').value
 
         # Messages to be transmited are published from other nodes and received here
         # Upon receiving a message it is converted to bytes and sent to the connected device
@@ -73,9 +77,22 @@ class UARTComNode(Node):
         self.acknowledged = False
 
         self.connect()
+
+        init_msg = Command()
+        init_msg.code = 0x43
+        init_msg.data = [self._wheel_diam, self._wheel_dist]
+
+        reset_msg = Command()
+        reset_msg.code = 0x49
+        reset_msg.data = [0.0, 0.0, 1.57]
+
         self._running.set()
         self.comm_thread = threading.Thread(target=self.communication)
         self.comm_thread.start()
+
+        self.transmit(init_msg)
+        time.sleep(0.1)
+        self.transmit(reset_msg)
 
     def connect(self):
         try:
@@ -141,7 +158,7 @@ class UARTComNode(Node):
 
                                 self._odom_publisher.publish(odom)
                             elif code == ACK:
-                                #self.get_logger().info("Acknowledged")
+                                self.get_logger().info("Acknowledged")
                                 self.acknowledged = True
 
             else:

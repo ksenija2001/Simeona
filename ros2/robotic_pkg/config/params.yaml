@@ -2,6 +2,10 @@ uart_com_node:
   ros__parameters:
     device_name: "/dev/ttyUSB_STM"
     baudrate: 115200
+    wheel_distance: 166.42
+    wheel_diameter: 70.0
+
+
 
 sllidar_node:
   ros__parameters:
