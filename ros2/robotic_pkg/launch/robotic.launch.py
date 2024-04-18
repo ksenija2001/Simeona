@@ -32,10 +32,18 @@ def generate_launch_description():
         name='py_node'
     )
 
+    movement = Node(
+        package='robotic_pkg',
+        executable='movement_node.py',
+        name='movement_node',
+        parameters=[config],
+
+    )
+
     return LaunchDescription(
         [
             uart,
             lidar,
-            test
+            movement
         ]
     )

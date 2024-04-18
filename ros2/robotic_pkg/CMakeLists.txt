@@ -42,6 +42,7 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   scripts/py_node.py
   scripts/uart_com_node.py
+  scripts/movement_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

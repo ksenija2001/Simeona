@@ -2,10 +2,6 @@ uart_com_node:
   ros__parameters:
     device_name: "/dev/ttyUSB_STM"
     baudrate: 115200
-    wheel_distance: 166.42
-    wheel_diameter: 70.0
-
-
 
 sllidar_node:
   ros__parameters:
@@ -17,3 +13,9 @@ sllidar_node:
     angle_compensate: true
     scan_mode: "Sensitivity" #16kHz sample rate
     scan_frequency: 10.0 # 10Hz speed of lidar
+
+movement_node:
+  ros__parameters:
+    Kp: 5.0
+    Ti: 0.01
+    Td: 0.01

@@ -7,6 +7,7 @@ from rclpy.executors import MultiThreadedExecutor
 
 from robotic_interfaces.msg import Command
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Bool
 from geometry_msgs.msg import (
     Quaternion,
     Pose,
@@ -23,17 +24,7 @@ import time
 import struct
 import threading
 import math
-
-START = 0xFA
-STOP  = 0xFB
-
-# Transmit messages
-INIT  = 0x49
-SPEED = 0x53
-
-# Receive messages
-ACK   = 0x41
-ODOM  = 0x4F
+from robotic_pkg.Constants import Code, Wheel
 
 
 class UARTComNode(Node):
@@ -45,16 +36,12 @@ class UARTComNode(Node):
             namespace='',
             parameters=[
                 ('device_name', rclpy.Parameter.Type.STRING),
-                ('baudrate', rclpy.Parameter.Type.INTEGER),
-                ('wheel_distance', rclpy.Parameter.Type.DOUBLE),
-                ('wheel_diameter', rclpy.Parameter.Type.DOUBLE),
+                ('baudrate', rclpy.Parameter.Type.INTEGER)
             ]
         )
 
         self._port = self.get_parameter('device_name').value
         self._baudrate = self.get_parameter('baudrate').value
-        self._wheel_dist = self.get_parameter('wheel_distance').value
-        self._wheel_diam = self.get_parameter('wheel_diameter').value
 
         # Messages to be transmited are published from other nodes and received here
         # Upon receiving a message it is converted to bytes and sent to the connected device
@@ -74,16 +61,24 @@ class UARTComNode(Node):
             10
         )
 
+        self._reset_subscriber = self.create_subscription(
+            Bool,
+            "reset_odom",
+            self.reset_odom,
+            10,
+            callback_group=ReentrantCallbackGroup()
+        )
+
         self.acknowledged = False
 
         self.connect()
 
         init_msg = Command()
-        init_msg.code = 0x43
-        init_msg.data = [self._wheel_diam, self._wheel_dist]
+        init_msg.code = Code.CONFIG
+        init_msg.data = [float(Wheel.DIAMETER), float(Wheel.TRACK)]
 
         reset_msg = Command()
-        reset_msg.code = 0x49
+        reset_msg.code = Code.INIT
         reset_msg.data = [0.0, 0.0, 1.57]
 
         self._running.set()
@@ -108,12 +103,21 @@ class UARTComNode(Node):
             self.get_logger().error(str(e))
             raise SystemError
 
+    def reset_odom(self, msg):
+        reset_msg = Command()
+        reset_msg.code = Code.INIT
+        reset_msg.data = [0.0, 0.0, 1.57]
+
+        self.transmit(reset_msg)
+        self.get_logger().info("Reset position message acknowledged")
+
+
     def transmit(self, msg):
         bytes_msg = list(bytes().join(struct.pack('f', val) for val in msg.data))
-        bytes_msg.insert(0, START)
+        bytes_msg.insert(0, Code.START)
         bytes_msg.insert(1, msg.code)
         bytes_msg.insert(2, len(msg.data)*4+3)
-        bytes_msg.append(STOP)
+        bytes_msg.append(Code.STOP)
         
         self.get_logger().info(f"{bytes_msg}")
 
@@ -125,7 +129,7 @@ class UARTComNode(Node):
     def communication(self):
         while self._running.is_set():
             #self.get_logger().info(f"Waiting: {self._ser.inWaiting()}")
-            if self._ser.inWaiting() > 0 and int.from_bytes(self._ser.read(1), "big") == START:
+            if self._ser.inWaiting() > 0 and int.from_bytes(self._ser.read(1), "big") == Code.START:
                     code = int.from_bytes(self._ser.read(1), 'big')
                     #self.get_logger().info(f"CODE: {code}")
 
@@ -135,31 +139,31 @@ class UARTComNode(Node):
                     data_arr = bytearray(self._ser.read(msg_len-3))
                     
                     # Message is valid if last byte is the STOP byte
-                    if len(data_arr) > 0:
-                        last = int.from_bytes(self._ser.read(1), 'big')
-                        #self.get_logger().info(f"LAST: {last}")
+                    #if len(data_arr) > 0:
+                    last = int.from_bytes(self._ser.read(1), 'big')
+                    #self.get_logger().info(f"LAST: {last}")
 
-                        if last == STOP:
-                            if code == ODOM:
-                                #self.get_logger().info("ODOM")
-                                x     = float(struct.unpack('f', data_arr[0:4])[0]) / 1000
-                                y     = float(struct.unpack('f', data_arr[4:8])[0]) / 1000
-                                theta = float(struct.unpack('f', data_arr[8:12])[0])
-                                left  = float(struct.unpack('f', data_arr[12:16])[0])
-                                right = float(struct.unpack('f', data_arr[16:20])[0])
-                                #self.get_logger().info(f"x: {x:.3f}, y: {y:.3f}, t: {theta:.3f}")
+                    if last == Code.STOP:
+                        if code == Code.ODOM:
+                            #self.get_logger().info("ODOM")
+                            x     = float(struct.unpack('f', data_arr[0:4])[0]) / 1000
+                            y     = float(struct.unpack('f', data_arr[4:8])[0]) / 1000
+                            theta = float(struct.unpack('f', data_arr[8:12])[0])
+                            left  = float(struct.unpack('f', data_arr[12:16])[0])
+                            right = float(struct.unpack('f', data_arr[16:20])[0])
+                            #self.get_logger().info(f"x: {x:.3f}, y: {y:.3f}, t: {theta:.3f}")
 
-                                odom = Odometry()
-                                odom.header.stamp = self.get_clock().now().to_msg()
-                                odom.header.frame_id = "odom"
-                                odom.child_frame_id = "base_link"
-                                odom.pose = self.construct_pose(x, y, theta)
-                                odom.twist = self.construct_twist(left, right, theta)
+                            odom = Odometry()
+                            odom.header.stamp = self.get_clock().now().to_msg()
+                            odom.header.frame_id = "odom"
+                            odom.child_frame_id = "base_link"
+                            odom.pose = self.construct_pose(x, y, theta)
+                            odom.twist = self.construct_twist(left, right, theta)
 
-                                self._odom_publisher.publish(odom)
-                            elif code == ACK:
-                                self.get_logger().info("Acknowledged")
-                                self.acknowledged = True
+                            self._odom_publisher.publish(odom)
+                        elif code == Code.ACK:
+                            self.get_logger().info("Acknowledged")
+                            self.acknowledged = True
 
             else:
                 time.sleep(0.001)
@@ -179,7 +183,7 @@ class UARTComNode(Node):
         return pc
 
 
-    def construct_twist(self, left, right, theta, track=166.42) -> TwistWithCovariance:
+    def construct_twist(self, left, right, theta) -> TwistWithCovariance:
         tc = TwistWithCovariance()
         t = Twist()
 
@@ -187,7 +191,7 @@ class UARTComNode(Node):
         right = right/1000
 
         linear = 0.5*(left + right)
-        angular = (right - left)/track
+        angular = (right - left)/Wheel.TRACK
 
         v_x = linear*math.cos(theta)
         v_y = linear*math.sin(theta)
