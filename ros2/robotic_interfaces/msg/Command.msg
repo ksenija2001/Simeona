@@ -1,2 +1,2 @@
 uint8 code
-float[] data
+float32[] data

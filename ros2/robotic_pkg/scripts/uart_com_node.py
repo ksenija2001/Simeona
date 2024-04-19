@@ -1,30 +1,28 @@
 #!/usr/bin/env python3
-
 import rclpy
 from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
-from robotic_interfaces.msg import Command
+from robotic_interfaces.msg import (
+    Command,
+    Odom
+)
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool
-from geometry_msgs.msg import (
-    Quaternion,
-    Pose,
-    PoseWithCovariance,
-    Twist,
-    TwistWithCovariance
+from robotic_pkg.Constants import (
+    Code, 
+    Wheel
 )
 
-from tf_transformations import quaternion_from_euler
-from threading import Event
+from threading import (
+    Thread,
+    Event
+)
 import serial
 from serial.serialutil import SerialException
 import time
 import struct
-import threading
-import math
-from robotic_pkg.Constants import Code, Wheel
 
 
 class UARTComNode(Node):
@@ -53,19 +51,10 @@ class UARTComNode(Node):
             callback_group=ReentrantCallbackGroup()
         )
 
-        # When an odometry message is received from the connected device it is 
-        # processed and published for other nodes to use it
-        self._odom_publisher = self.create_publisher(
-            Odometry,
-            "odom",
-            10
-        )
-
-        self._reset_subscriber = self.create_subscription(
-            Bool,
-            "reset_odom",
-            self.reset_odom,
-            10,
+        self._odom_message_pub = self.create_publisher(
+            Odom,
+            "odom_message",
+            1,
             callback_group=ReentrantCallbackGroup()
         )
 
@@ -73,21 +62,16 @@ class UARTComNode(Node):
 
         self.connect()
 
-        init_msg = Command()
-        init_msg.code = Code.CONFIG
-        init_msg.data = [float(Wheel.DIAMETER), float(Wheel.TRACK)]
-
-        reset_msg = Command()
-        reset_msg.code = Code.INIT
-        reset_msg.data = [0.0, 0.0, 1.57]
-
         self._running.set()
-        self.comm_thread = threading.Thread(target=self.communication)
+        self.comm_thread = Thread(target=self.communication)
         self.comm_thread.start()
 
-        self.transmit(init_msg)
+        config_msg = Command()
+        config_msg.code = Code.CONFIG
+        config_msg.data = [float(Wheel.DIAMETER), float(Wheel.TRACK)]
+        self.transmit(config_msg)
+
         time.sleep(0.1)
-        self.transmit(reset_msg)
 
     def connect(self):
         try:
@@ -102,14 +86,6 @@ class UARTComNode(Node):
         except SerialException as e:
             self.get_logger().error(str(e))
             raise SystemError
-
-    def reset_odom(self, msg):
-        reset_msg = Command()
-        reset_msg.code = Code.INIT
-        reset_msg.data = [0.0, 0.0, 1.57]
-
-        self.transmit(reset_msg)
-        self.get_logger().info("Reset position message acknowledged")
 
 
     def transmit(self, msg):
@@ -145,68 +121,21 @@ class UARTComNode(Node):
 
                     if last == Code.STOP:
                         if code == Code.ODOM:
-                            #self.get_logger().info("ODOM")
-                            x     = float(struct.unpack('f', data_arr[0:4])[0]) / 1000
-                            y     = float(struct.unpack('f', data_arr[4:8])[0]) / 1000
-                            theta = float(struct.unpack('f', data_arr[8:12])[0])
-                            left  = float(struct.unpack('f', data_arr[12:16])[0])
-                            right = float(struct.unpack('f', data_arr[16:20])[0])
-                            #self.get_logger().info(f"x: {x:.3f}, y: {y:.3f}, t: {theta:.3f}")
+                            odom_msg = Odom()
 
-                            odom = Odometry()
-                            odom.header.stamp = self.get_clock().now().to_msg()
-                            odom.header.frame_id = "odom"
-                            odom.child_frame_id = "base_link"
-                            odom.pose = self.construct_pose(x, y, theta)
-                            odom.twist = self.construct_twist(left, right, theta)
+                            odom_msg.pose.x = float(struct.unpack('f', data_arr[0:4])[0]) / 1000
+                            odom_msg.pose.y = float(struct.unpack('f', data_arr[4:8])[0]) / 1000
+                            odom_msg.pose.theta = float(struct.unpack('f', data_arr[8:12])[0])
+                            odom_msg.vel.left  = float(struct.unpack('f', data_arr[12:16])[0]) / 1000
+                            odom_msg.vel.right = float(struct.unpack('f', data_arr[16:20])[0]) / 1000
 
-                            self._odom_publisher.publish(odom)
+                            self._odom_message_pub.publish(odom_msg)
                         elif code == Code.ACK:
                             self.get_logger().info("Acknowledged")
                             self.acknowledged = True
 
             else:
                 time.sleep(0.001)
-
-    def construct_pose(self, x, y, theta) -> PoseWithCovariance:
-        pc = PoseWithCovariance()
-        p = Pose()
-
-        p.position.x, p.position.y, p.position.z = float(x), float(y), 0.0
-        # Roll and pith are zero because the robot can only rotate around the z axis
-        roll, pitch, yaw = 0.0, 0.0, theta
-        x, y, z, w = quaternion_from_euler(roll, pitch, yaw) 
-        p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w = x, y, z, w
-        pc.pose = p
-        #pc.covariance = []
-
-        return pc
-
-
-    def construct_twist(self, left, right, theta) -> TwistWithCovariance:
-        tc = TwistWithCovariance()
-        t = Twist()
-
-        left = left/1000
-        right = right/1000
-
-        linear = 0.5*(left + right)
-        angular = (right - left)/Wheel.TRACK
-
-        v_x = linear*math.cos(theta)
-        v_y = linear*math.sin(theta)
-
-        t.linear.x, t.linear.y, t.linear.z = float(v_x), float(v_y), 0.0
-        t.angular.x, t.angular.y, t.angular.z = 0.0, 0.0, float(angular)
-
-        tc.twist = t
-        #tc.covariance = []
-
-        return tc
-
-        
-                
-
 
 def main(args=None):
     rclpy.init(args=args)

@@ -36,8 +36,7 @@ def generate_launch_description():
         package='robotic_pkg',
         executable='movement_node.py',
         name='movement_node',
-        parameters=[config],
-
+        parameters=[config]
     )
 
     return LaunchDescription(

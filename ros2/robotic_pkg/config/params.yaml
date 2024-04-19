@@ -16,6 +16,6 @@ sllidar_node:
 
 movement_node:
   ros__parameters:
-    Kp: 5.0
+    Kp: 1.0
     Ti: 0.01
     Td: 0.01

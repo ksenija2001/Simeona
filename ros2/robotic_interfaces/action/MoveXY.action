@@ -1,0 +1,6 @@
+geometry_msgs/Pose2D goal_xy
+float64 speed
+---
+bool success
+---
+Position feedback_position

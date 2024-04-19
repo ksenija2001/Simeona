@@ -40,7 +40,7 @@ ament_python_install_package(${PROJECT_NAME})
 
 # Install Python executables
 install(PROGRAMS
-  scripts/py_node.py
+  scripts/template_node.py
   scripts/uart_com_node.py
   scripts/movement_node.py
   DESTINATION lib/${PROJECT_NAME}
