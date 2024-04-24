@@ -108,12 +108,15 @@ class MovementNode(Node):
         self._command_pub.publish(msg)
 
     def calculate_pid(self, distance_moved, goal_distance):
-        error = goal_distance - distance_moved
+        direct = 1
+        if goal_distance < 0:
+            direct = -1
+        error = abs(goal_distance) - distance_moved
 
-        P = error * self.Kp
+        P = error * self.Kp * direct
 
         if abs(P) > self.control + self.ramp:
-            self.control += self.ramp
+            self.control += self.ramp * P/(abs(P) + 1e-10)
         else:
             self.control = P
 
@@ -147,7 +150,7 @@ class MovementNode(Node):
             last_pose.y = self.odom.y
             last_pose.theta = self.odom.theta
 
-            if feedback_count == 10:
+            if feedback_count == 5:
                 feedback_count = 0
 
                 feedback_msg = MoveDistance.Feedback()
@@ -160,6 +163,9 @@ class MovementNode(Node):
 
         # Resets parameters for next goal
         self.move_goal = None
+        self.control = 0
+        self.send_speed(0.0, 0.0)
+        self.send_speed(0.0, 0.0)
         self.send_speed(0.0, 0.0)
 
         if self.cancel_goal.is_set():
@@ -185,7 +191,6 @@ class MovementNode(Node):
     # Handles the cancelation of active movement
     def goal_cancel_callback(self, cancel_request):
         self.cancel_goal.set()
-        self.stop_robot()
         return CancelResponse.ACCEPT
         
     def odom_callback(self, msg):
@@ -216,7 +221,7 @@ class MovementNode(Node):
         right = linear + angular*Wheel.TRACK/2
         left = 2*linear - right
 
-        #self.get_logger().info(f'left={left:.3f}, right={right:.3f}')
+        self.get_logger().info(f'left={left:.3f}, right={right:.3f}')
 
         self.send_speed(left*1000, right*1000)
 

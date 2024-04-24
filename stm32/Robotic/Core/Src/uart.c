@@ -76,6 +76,8 @@ void USART2_Init()
     			   (uartdiv%16) << USART_BRR_DIV_Fraction_Pos);
 
     USART2->CR1 |= (USART_CR1_RE | USART_CR1_TE | USART_CR1_UE | USART_CR1_RXNEIE);
+
+	memset(recv, 0, sizeof recv);
 }
 
 // Interrupt handler for receiving data over UART
@@ -133,6 +135,9 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 				bad_msg_counter = 0;
 				memset(recv, 0, sizeof recv);
 
+				// Sends an acknowledge for the received message to the connected device
+				Send_Command(ACK_TRANSMIT, &ack, 4);
+
 				break;
 			case INIT_RECEIVE:
 				sOdom_t odom = {
@@ -146,21 +151,26 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 				bad_msg_counter = 0;
 				memset(recv, 0, sizeof recv);
 
+				// Sends an acknowledge for the received message to the connected device
+				Send_Command(ACK_TRANSMIT, &ack, 4);
+
 				break;
 			case CONFIG_RECEIVE:
 				float diameter = Read_Float(recv, 3);
 				float distance = Read_Float(recv, 7);
 				Config(diameter, distance);
-
 				memset(recv, 0, sizeof recv);
+
+				// Sends an acknowledge for the received message to the connected device
+				Send_Command(ACK_TRANSMIT, &ack, 4);
+
 				break;
 			default:
 				// TODO handle message that doesn't exist
 				break;
 			}
 
-			// Sends an acknowledge for the received message to the connected device
-			Send_Command(ACK_TRANSMIT, &ack, 4);
+
 		}
 		// If the whole message was not received in more than 30ms, discard the buffer
 		else if (*recv == null && bad_msg_counter > 3){
@@ -168,6 +178,7 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 				buffer_read(&in_buf);
 			}
 			bad_msg_counter = 0;
+			memset(recv, 0, sizeof recv);
 		}
 	}
 
@@ -212,11 +223,12 @@ void Read_Buffer(uint8_t* recv_data)
 	if(first == START && last == STOP && len > 0){
 		for(uint8_t i=0; i<len+2; i++)
 			recv_data[i] = buffer_read(&in_buf);
+		return;
 	}
-	else if(first == START){
+	else if(first == START)
 		bad_msg_counter++;
-		recv_data[0] = null;
-	}
+
+	recv_data[0] = null;
 }
 
 // Constructs a message and sends it through the output buffer to the connected device

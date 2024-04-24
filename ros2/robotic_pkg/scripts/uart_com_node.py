@@ -99,8 +99,10 @@ class UARTComNode(Node):
 
         self.acknowledged = False
         while not self.acknowledged:
+            self._ser.reset_output_buffer()
             self._ser.write(bytearray(bytes_msg))
             time.sleep(0.01)
+
 
     def communication(self):
         while self._running.is_set():
@@ -133,6 +135,8 @@ class UARTComNode(Node):
                         elif code == Code.ACK:
                             self.get_logger().info("Acknowledged")
                             self.acknowledged = True
+
+                    self._ser.reset_input_buffer()
 
             else:
                 time.sleep(0.001)

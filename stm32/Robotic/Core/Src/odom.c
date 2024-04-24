@@ -132,6 +132,13 @@ void Reset_Encoders(sOdom_t* new_odom){
 	last_right_enc = 0;
 	curr_left_enc  = 0;
 	curr_right_enc = 0;
+	delta_left = 0;
+	delta_right = 0;
+	delta_distance = 0;
+	delta_theta = 0;
+
+	LEFT.tim->CNT = 0;
+	RIGHT.tim->CNT = 0;
 
 	odom.x = new_odom->x;
 	odom.y = new_odom->y;
