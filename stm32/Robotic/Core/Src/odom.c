@@ -20,7 +20,9 @@ sOdom_t odom = {
 		.y = 0,
 		.theta = M_PI/2,
 		.left_speed = 0,
-		.right_speed = 0
+		.right_speed = 0,
+		.left_inc = 0,
+		.right_inc = 0
 };
 
 int32_t last_left_enc  = 0; // left increments
@@ -33,8 +35,8 @@ float delta_right = 0;
 float delta_distance = 0;
 float delta_theta    = 0;
 
-float wheel_diameter = 70;
-float wheel_distance = 166.42;
+volatile float wheel_diameter = 70;
+volatile float wheel_distance = 166.42;
 float inc_mm = 1;
 float inc_rad = 1;
 
@@ -120,6 +122,14 @@ sOdom_t* Read_Encoders(){
 	odom.x += delta_distance * cos(odom.theta + delta_theta/2);
 	odom.y += delta_distance * sin(odom.theta + delta_theta/2);
 	odom.theta += delta_theta;
+	odom.left_inc += delta_left;
+	odom.right_inc += delta_right;
+
+	if (odom.theta > M_PI)
+		odom.theta -= 2*M_PI;
+	else if(odom.theta < -M_PI)
+		odom.theta += 2*M_PI;
+
 	odom.left_speed  = delta_left / ODOM_TIME * 1000; // mm/s
 	odom.right_speed = delta_right / ODOM_TIME * 1000; // mm/s
 
@@ -145,6 +155,8 @@ void Reset_Encoders(sOdom_t* new_odom){
 	odom.theta = new_odom->theta;
 	odom.left_speed = 0;
 	odom.right_speed = 0;
+	odom.left_inc = 0;
+	odom.right_inc = 0;
 }
 
 void Config(float diameter, float distance){

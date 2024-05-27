@@ -70,8 +70,8 @@ class UARTComNode(Node):
         config_msg.code = Code.CONFIG
         config_msg.data = [float(Wheel.DIAMETER), float(Wheel.TRACK)]
         self.transmit(config_msg)
-
         time.sleep(0.1)
+        self.get_logger().info("Config set")
 
     def connect(self):
         try:
@@ -106,40 +106,38 @@ class UARTComNode(Node):
 
     def communication(self):
         while self._running.is_set():
-            #self.get_logger().info(f"Waiting: {self._ser.inWaiting()}")
-            if self._ser.inWaiting() > 0 and int.from_bytes(self._ser.read(1), "big") == Code.START:
-                    code = int.from_bytes(self._ser.read(1), 'big')
-                    #self.get_logger().info(f"CODE: {code}")
+            if self._ser.inWaiting() > 0 and \
+               int.from_bytes(self._ser.read(1), "big") == Code.START:
+            
+                code = int.from_bytes(self._ser.read(1), 'big')
+                msg_len = int.from_bytes(self._ser.read(1), 'big')
+                data_arr = bytearray(self._ser.read(msg_len-3))
+                last = int.from_bytes(self._ser.read(1), 'big')
+        
+                # Message is valid if last byte is the STOP byte
+                if last == Code.STOP:
+                    if code == Code.ODOM:
+                        #self.get_logger().info("ODOM")
 
-                    msg_len = int.from_bytes(self._ser.read(1), 'big')
-                    #self.get_logger().info(f"LEN: {msg_len}")
+                        odom_msg = Odom()
 
-                    data_arr = bytearray(self._ser.read(msg_len-3))
-                    
-                    # Message is valid if last byte is the STOP byte
-                    #if len(data_arr) > 0:
-                    last = int.from_bytes(self._ser.read(1), 'big')
-                    #self.get_logger().info(f"LAST: {last}")
+                        odom_msg.pose.x = float(struct.unpack('f', data_arr[0:4])[0]) / 1000
+                        #self.get_logger().info(str(odom_msg.pose.x))
+                        odom_msg.pose.y = float(struct.unpack('f', data_arr[4:8])[0]) / 1000
+                        #self.get_logger().info(str(odom_msg.pose.y))
 
-                    if last == Code.STOP:
-                        if code == Code.ODOM:
-                            odom_msg = Odom()
+                        odom_msg.pose.theta = float(struct.unpack('f', data_arr[8:12])[0])
+                        odom_msg.vel.left  = float(struct.unpack('f', data_arr[12:16])[0]) / 1000
+                        odom_msg.vel.right = float(struct.unpack('f', data_arr[16:20])[0]) / 1000
 
-                            odom_msg.pose.x = float(struct.unpack('f', data_arr[0:4])[0]) / 1000
-                            odom_msg.pose.y = float(struct.unpack('f', data_arr[4:8])[0]) / 1000
-                            odom_msg.pose.theta = float(struct.unpack('f', data_arr[8:12])[0])
-                            odom_msg.vel.left  = float(struct.unpack('f', data_arr[12:16])[0]) / 1000
-                            odom_msg.vel.right = float(struct.unpack('f', data_arr[16:20])[0]) / 1000
+                        self._odom_message_pub.publish(odom_msg)
+                    elif code == Code.ACK:
+                        self.get_logger().info("Acknowledged")
+                        self.acknowledged = True
 
-                            self._odom_message_pub.publish(odom_msg)
-                        elif code == Code.ACK:
-                            self.get_logger().info("Acknowledged")
-                            self.acknowledged = True
+                #self._ser.reset_input_buffer()
 
-                    self._ser.reset_input_buffer()
-
-            else:
-                time.sleep(0.001)
+            time.sleep(0.001)
 
 def main(args=None):
     rclpy.init(args=args)

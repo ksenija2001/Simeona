@@ -9,8 +9,8 @@
 
 volatile uint32_t uart_interrupt_counter = 0;
 
-uint8_t in_buffer[BUFFER_SIZE + 1];
-uint8_t out_buffer[BUFFER_SIZE + 1];
+uint8_t in_buffer[BUFFER_SIZE];
+uint8_t out_buffer[BUFFER_SIZE];
 
 circular_buff in_buf = {
 		len    : BUFFER_SIZE,
@@ -29,6 +29,7 @@ circular_buff out_buf = {
 uint8_t first = 0;
 uint8_t len   = 0;
 uint8_t last  = 0;
+uint8_t code  = 0;
 
 uint8_t size  = 0;
 
@@ -45,6 +46,10 @@ union U_F{
 	float f;
 	uint8_t u[4];
 }convert_float;
+
+float send_odom_enc[7];
+
+uint32_t test =0;
 
 // Initializes USART2 over pins PA2 and PA3 with interrupt handler
 void USART2_Init()
@@ -73,20 +78,31 @@ void USART2_Init()
 
     // Set BaudRate to 115200
     USART2->BRR = ((uartdiv/16) << USART_BRR_DIV_Mantissa_Pos |
-    			   (uartdiv%16) << USART_BRR_DIV_Fraction_Pos);
+    			  (uartdiv%16) << USART_BRR_DIV_Fraction_Pos);
 
-    USART2->CR1 |= (USART_CR1_RE | USART_CR1_TE | USART_CR1_UE | USART_CR1_RXNEIE);
+    USART2->CR1 |= (USART_CR1_RE | USART_CR1_TE | USART_CR1_UE | USART_CR1_RXNEIE | USART_CR1_TCIE);
 
 	memset(recv, 0, sizeof recv);
+
 }
 
 // Interrupt handler for receiving data over UART
 void USART2_IRQHandler(void)
 {
+	// test = USART2->SR;
+
+	// Handles interrupt if a byte was received
 	if (USART2->SR & USART_SR_RXNE) {
 	  c = USART2->DR;
-	  if (c != '\r')
-		  buffer_write(&in_buf, c);
+	  buffer_write(&in_buf, c);
+	}
+	// Hanldes interrupt if a byte was transmitted successfully
+	else if (USART2->SR & USART_SR_TC){
+		USART2->SR &= ~(0b1 << USART_SR_TC_Pos);
+		if (out_buf.head != out_buf.tail){
+			send_data = buffer_read(&out_buf);
+			USART2->DR = send_data;
+		}
 	}
 }
 
@@ -120,24 +136,36 @@ void UART_Interrupt_Init()
 
 // Checks input buffer for messages from connected device
 void TIM1_TRG_COM_TIM11_IRQHandler(void){
-
 	uart_interrupt_counter++;
 
-	if (uart_interrupt_counter % UART_TIME == 0){
-		// Reads buffer and discards message if it isn't valid
+	if (uart_interrupt_counter % UART_TIME == 0 &&
+		in_buf.head != in_buf.tail)
+	{
 		Read_Buffer(recv);
 		if (*recv != null){
 			switch(recv[1]){
-			case SPEED_RECEIVE:
-				float left_speed = Read_Float(recv, 3);
-				float right_speed = Read_Float(recv, 7);
-				Set_Motor_Speed(left_speed, right_speed);
-				bad_msg_counter = 0;
-				memset(recv, 0, sizeof recv);
-
-				// Sends an acknowledge for the received message to the connected device
+			case ODOM_RECEIVE:
 				Send_Command(ACK_TRANSMIT, &ack, 4);
 
+				sOdom_t* odom_enc = Read_Encoders();
+
+				send_odom_enc[0] = odom_enc->x;
+				send_odom_enc[1] = odom_enc->y;
+				send_odom_enc[2] = odom_enc->theta;
+				send_odom_enc[3] = odom_enc->left_speed;
+				send_odom_enc[4] = odom_enc->right_speed;
+				send_odom_enc[5] = odom_enc->left_inc;
+				send_odom_enc[6] = odom_enc->right_inc;
+
+				Send_Command(ODOM_TRANSMIT, send_odom_enc, sizeof(send_odom_enc));
+				break;
+			case SPEED_RECEIVE:
+				Set_Motor_Speed(Read_Float(recv, 3),  // left speed
+								Read_Float(recv, 7)); // right_speed
+
+				// Sends an acknowledge for the received message
+				// to the connected device
+				Send_Command(ACK_TRANSMIT, &ack, 4);
 				break;
 			case INIT_RECEIVE:
 				sOdom_t odom = {
@@ -145,41 +173,38 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 						.y = Read_Float(recv, 7),
 						.theta = Read_Float(recv, 11),
 						.left_speed = 0,
-						.right_speed = 0
+						.right_speed = 0,
+						.left_inc = 0,
+						.right_inc = 0
 				};
 				Reset_Encoders(&odom);
-				bad_msg_counter = 0;
-				memset(recv, 0, sizeof recv);
 
-				// Sends an acknowledge for the received message to the connected device
+				// Sends an acknowledge for the received message
+				// to the connected device
 				Send_Command(ACK_TRANSMIT, &ack, 4);
-
 				break;
 			case CONFIG_RECEIVE:
-				float diameter = Read_Float(recv, 3);
-				float distance = Read_Float(recv, 7);
-				Config(diameter, distance);
-				memset(recv, 0, sizeof recv);
+				Config(Read_Float(recv, 3),   // diameter
+						Read_Float(recv, 7)); // track distance
 
-				// Sends an acknowledge for the received message to the connected device
+				// Sends an acknowledge for the received message
+				// to the connected device
 				Send_Command(ACK_TRANSMIT, &ack, 4);
-
-				break;
-			default:
-				// TODO handle message that doesn't exist
 				break;
 			}
 
-
-		}
-		// If the whole message was not received in more than 30ms, discard the buffer
-		else if (*recv == null && bad_msg_counter > 3){
-			while(in_buf.head != in_buf.tail){
-				buffer_read(&in_buf);
-			}
+			// If a valid message was received the counter
+			// for reseting the buffer is reset
 			bad_msg_counter = 0;
-			memset(recv, 0, sizeof recv);
 		}
+		// If the whole message was not received in more than 5ms, discard the buffer
+		else if (bad_msg_counter >= 4){
+			while(in_buf.head != in_buf.tail)
+				buffer_read(&in_buf);
+			bad_msg_counter = 0;
+		}
+
+		memset(recv, 0, sizeof recv);
 	}
 
 	// Clears interrupt flag so that other interrupts can work
@@ -217,17 +242,21 @@ void Send_Buffer()
 void Read_Buffer(uint8_t* recv_data)
 {
 	first = buffer_check(&in_buf, in_buf.head);
+	code   = buffer_check(&in_buf, in_buf.head+1);
 	len   = buffer_check(&in_buf, in_buf.head+2);
 	last  = buffer_check(&in_buf, in_buf.head+len);
 
-	if(first == START && last == STOP && len > 0){
+	if(first == START &&
+	   last == STOP &&
+	   len > 0){
 		for(uint8_t i=0; i<len+2; i++)
 			recv_data[i] = buffer_read(&in_buf);
 		return;
 	}
-	else if(first == START)
-		bad_msg_counter++;
 
+	// If the message is not valid null is returned
+	// and the counter for reseting the buffer increases
+	bad_msg_counter++;
 	recv_data[0] = null;
 }
 
@@ -250,7 +279,11 @@ void Send_Command(uint8_t code, float value[], uint8_t len)
 	}
 
 	buffer_write(&out_buf, STOP);
-	Send_Buffer();
+
+	// First byte needs to be sent manually to start the USART interrupt transmission
+	send_data = buffer_read(&out_buf);
+	while(!(USART2->SR & USART_SR_TXE));
+	USART2->DR = send_data;
 }
 
 

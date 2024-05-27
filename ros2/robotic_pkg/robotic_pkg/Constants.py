@@ -12,5 +12,5 @@ class Code:
     ODOM  = 0x4F
 
 class Wheel:
-    DIAMETER = 0.007
-    TRACK = 0.16642
+    DIAMETER = 70.0
+    TRACK = 157.20525667

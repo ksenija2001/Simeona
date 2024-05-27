@@ -20,7 +20,7 @@
 #define RX_PIN    3     //GPIO_PIN_3
 
 #define UART_Tim TIM11
-#define UART_TIME 10 // ms
+#define UART_TIME 1 // ms
 
 #define BAUDRATE 115200
 #define BUFFER_SIZE ( 128 )
@@ -28,6 +28,7 @@
 #define STOP  0xFB
 
 #define ODOM_TRANSMIT 0x4F
+#define ODOM_RECEIVE 0x4F
 #define ACK_TRANSMIT 0x41
 #define SPEED_RECEIVE 0x53
 #define INIT_RECEIVE 0x49

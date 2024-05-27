@@ -24,4 +24,7 @@ sOdom_t* Read_Encoders();
 void Reset_Encoders(sOdom_t* new_odom);
 void Config(float diameter, float distance);
 
+extern volatile float wheel_diameter;
+extern volatile float wheel_distance;
+
 #endif /* INC_ODOM_H_ */

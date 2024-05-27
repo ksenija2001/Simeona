@@ -36,7 +36,7 @@ class OdometryClass:
         self.y = odom.pose.y
         self.theta = odom.pose.theta
         self.linear_vel = 0.5*(odom.vel.left + odom.vel.right)
-        self.angular_vel = (odom.vel.right - odom.vel.left)/Wheel.TRACK
+        self.angular_vel = (odom.vel.right - odom.vel.left)/(Wheel.TRACK/1000)
 
     def to_twist(self):
         t = Twist()

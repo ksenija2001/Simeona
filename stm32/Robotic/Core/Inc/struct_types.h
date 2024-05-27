@@ -30,6 +30,8 @@ typedef struct {
 	float theta;
 	float left_speed;
 	float right_speed;
+	float left_inc;
+	float right_inc;
 } sOdom_t;
 
 // Structure for representing a motor

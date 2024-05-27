@@ -12,7 +12,8 @@ float q1;
 float q2;
 
 volatile uint32_t interrupt_counter = 0;
-float send_odom[5];
+float send_odom[7];
+
 
 sOutput_t BI2  = { .port = GPIOB, .pin = 10 };
 sOutput_t BI1  = { .port = GPIOC, .pin = 7 };
@@ -39,6 +40,8 @@ sMotor_t right_motor= {
 		.Ki = 0.08,
 		.Kd = 0.12,
 };
+
+
 
 // TIM2 CH1 and CH2 configuration as PWM output
 // Driver direction pins configuration
@@ -154,7 +157,6 @@ void TIM1_UP_TIM10_IRQHandler(void)
 	// Calculates new position and orientation based on encoder output
 	// and sends odometry data via UART
 	if( interrupt_counter % ODOM_TIME == 0 ){
-		//Send_Byte('2');
 		sOdom_t* odom = Read_Encoders();
 
 		send_odom[0] = odom->x;
@@ -162,6 +164,8 @@ void TIM1_UP_TIM10_IRQHandler(void)
 		send_odom[2] = odom->theta;
 		send_odom[3] = odom->left_speed;
 		send_odom[4] = odom->right_speed;
+		send_odom[5] = odom->left_inc;
+		send_odom[6] = odom->right_inc;
 
 		left_motor.current_speed = odom->left_speed;
 		right_motor.current_speed = odom->right_speed;
@@ -171,7 +175,6 @@ void TIM1_UP_TIM10_IRQHandler(void)
 
 	// Calculates speed loop PID and sends the output to the driver
 	if( interrupt_counter % PID_TIME == 0 ){
-		//Send_Byte('4');
 		left_motor.Compute_PID(&left_motor);
 		right_motor.Compute_PID(&right_motor);
 
@@ -188,6 +191,12 @@ void Set_Motor_Speed(float left, float right)
 {
 	left_motor.target_speed = left;
 	right_motor.target_speed = right;
+
+//	left_motor.control_PWM = 0;
+//	memset(left_motor.errors, 0, sizeof left_motor.errors);
+//
+//	right_motor.control_PWM = 0;
+//	memset(right_motor.errors, 0, sizeof right_motor.errors);
 }
 
 // Updates PWM control for reaching and holding target speed
@@ -233,7 +242,6 @@ void Set_Motor_PWM(unsigned int left, unsigned int right)
 	if (left > PWM_ARR) left = PWM_ARR;
 	if (right > PWM_ARR) right = PWM_ARR;
 
-	// TODO check which motor is which
 	TIM2->CCR1 = left;
 	TIM2->CCR2 = right;
 }

@@ -88,7 +88,7 @@ class MovementNode(Node):
         self.print_count = 0
         self.reset_odom(Bool())
         time.sleep(0.1)
-        self.send_speed(0.0, 0.0)
+        #self.send_speed(0.0, 0.0)
 
     def reset_odom(self, msg):
         reset_msg = Command()
@@ -208,22 +208,28 @@ class MovementNode(Node):
 
         self._odom_pub.publish(odom)
 
-        if self.print_count % 100 == 0:
+        if self.print_count % 50 == 0:
             self.get_logger().info(str(self.odom))
             self.print_count = 0
         self.print_count += 1
 
     def move_callback(self, msg):
-        linear = msg.linear.x
-        v_y = msg.linear.y # 0
-        angular = msg.angular.z
+        # linear = msg.linear.x
+        # v_y = msg.linear.y # 0
+        # angular = msg.angular.z #*(Wheel.DIAMETER/1000) /2
 
-        right = linear + angular*Wheel.TRACK/2
-        left = 2*linear - right
+        # right = linear + angular*(Wheel.TRACK/1000) /2
+        # left = 2*linear - right
+
+        linear = msg.linear.x * 1000 # mm/s
+        angular = Wheel.DIAMETER * msg.angular.z # mm/s
+
+        left = linear + angular
+        right = linear - angular
 
         self.get_logger().info(f'left={left:.3f}, right={right:.3f}')
 
-        self.send_speed(left*1000, right*1000)
+        self.send_speed(left, right)
 
 def main(args=None):
     rclpy.init(args=args)
