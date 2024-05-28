@@ -19,3 +19,9 @@ movement_node:
     Kp: 0.75
     Ti: 0.01
     Td: 0.01
+
+tof_node:
+  ros__parameters:
+    id: 1
+    device_name: "/dev/ttyAMA0"
+    baudrate: 115200

@@ -25,6 +25,8 @@ from robotic_pkg.Constants import (
 )
 from robotic_pkg.Odometry import OdometryClass
 
+from example_interfaces.msg import Int64
+
 import math
 from threading import Event
 import time
@@ -69,6 +71,9 @@ class MovementNode(Node):
             self.reset_odom,
             10        
         )
+
+        self.tof_subscriber = self.create_subscription(Int64, 'tof/distance', self.falling_detection, 10)
+        self.forward_enable = True
 
         self.move_distance = ActionServer(
             self,
@@ -213,14 +218,15 @@ class MovementNode(Node):
             self.print_count = 0
         self.print_count += 1
 
+    def falling_detection(self, msg):
+        if msg.data > 50 and self.forward_enable:
+            self.forward_enable = False
+            msg = Twist()
+            self.move_callback(msg)
+        elif msg.data < 50:
+            self.forward_enable = True
+
     def move_callback(self, msg):
-        # linear = msg.linear.x
-        # v_y = msg.linear.y # 0
-        # angular = msg.angular.z #*(Wheel.DIAMETER/1000) /2
-
-        # right = linear + angular*(Wheel.TRACK/1000) /2
-        # left = 2*linear - right
-
         linear = msg.linear.x * 1000 # mm/s
         angular = Wheel.DIAMETER * msg.angular.z # mm/s
 
@@ -229,7 +235,12 @@ class MovementNode(Node):
 
         self.get_logger().info(f'left={left:.3f}, right={right:.3f}')
 
-        self.send_speed(left, right)
+        #self.get_logger().info(f"linear: {linear}, forward: {self.forward_enable}")
+        if not self.forward_enable and linear > 0:
+            self.send_speed(0, 0)
+        else:
+            self.send_speed(left, right)
+    
 
 def main(args=None):
     rclpy.init(args=args)

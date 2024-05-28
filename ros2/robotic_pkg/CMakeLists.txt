@@ -43,6 +43,7 @@ install(PROGRAMS
   scripts/template_node.py
   scripts/uart_com_node.py
   scripts/movement_node.py
+  scripts/tof_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

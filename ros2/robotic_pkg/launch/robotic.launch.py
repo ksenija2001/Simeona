@@ -39,10 +39,18 @@ def generate_launch_description():
         parameters=[config]
     )
 
+    tof = Node(
+        package = 'robotic_pkg',
+        name = 'tof_node',
+        executable = 'tof_node.py',
+        parameters = [config]
+    )
+
     return LaunchDescription(
         [
             uart,
             lidar,
+            tof,
             movement
         ]
     )
