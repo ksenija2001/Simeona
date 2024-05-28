@@ -16,9 +16,11 @@ sllidar_node:
 
 movement_node:
   ros__parameters:
-    Kp: 0.75
+    Kp: 3.0
     Ti: 0.01
     Td: 0.01
+    max_speed: 0.6 #m/s
+    ramp: 0.01 #m/s
 
 tof_node:
   ros__parameters:

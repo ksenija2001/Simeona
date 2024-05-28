@@ -41,14 +41,16 @@ class MovementNode(Node):
                 ('Kp', rclpy.Parameter.Type.DOUBLE),
                 ('Ti', rclpy.Parameter.Type.DOUBLE),
                 ('Td', rclpy.Parameter.Type.DOUBLE),
+                ('max_speed', rclpy.Parameter.Type.DOUBLE),
+                ('ramp', rclpy.Parameter.Type.DOUBLE),
             ]
         )
 
         self.Kp = self.get_parameter('Kp').value
         self.Ti = self.get_parameter('Ti').value
         self.Td = self.get_parameter('Td').value
-
-        self.ramp = 0.1 # m/s
+        self.max_speed =  self.get_parameter('max_speed').value
+        self.ramp = self.get_parameter('ramp').value
         self.control = 0
 
         self._command_pub      = self.create_publisher(Command, "transmit", 10)
@@ -118,12 +120,17 @@ class MovementNode(Node):
             direct = -1
         error = abs(goal_distance) - distance_moved
 
-        P = error * self.Kp * direct
+        P = error * self.Kp 
 
         if abs(P) > self.control + self.ramp:
             self.control += self.ramp * P/(abs(P) + 1e-10)
         else:
             self.control = P
+
+        if abs(self.control) > self.max_speed:
+            self.control = self.max_speed * self.control/(abs(self.control) + 1e-10)
+
+        self.control *= direct
 
         twist = Twist()
         twist.linear.x = self.control
@@ -143,17 +150,13 @@ class MovementNode(Node):
         self.control = 0
         feedback_count = 0
         distance_moved = 0
-        last_pose = OdometryClass(self.odom.x, self.odom.y, self.odom.theta, 0.0, 0.0)
+        start_pose = OdometryClass(self.odom.x, self.odom.y, self.odom.theta, 0.0, 0.0)
 
         while ( not self.cancel_goal.is_set() and \
-                distance_moved <= abs(goal_distance)
+                distance_moved <= (abs(goal_distance) - 0.003)
         ):
-            distance_moved += math.sqrt((last_pose.x - self.odom.x)**2 + (last_pose.y - self.odom.y)**2)
+            distance_moved = math.sqrt((start_pose.x - self.odom.x)**2 + (start_pose.y - self.odom.y)**2)
             self.calculate_pid(distance_moved, goal_distance)
-
-            last_pose.x = self.odom.x
-            last_pose.y = self.odom.y
-            last_pose.theta = self.odom.theta
 
             if feedback_count == 5:
                 feedback_count = 0
@@ -164,7 +167,7 @@ class MovementNode(Node):
 
             feedback_count += 1
 
-            time.sleep(.01)
+            time.sleep(0.01)
 
         # Resets parameters for next goal
         self.move_goal = None
@@ -219,11 +222,11 @@ class MovementNode(Node):
         self.print_count += 1
 
     def falling_detection(self, msg):
-        if msg.data > 50 and self.forward_enable:
+        if msg.data > 30 and self.forward_enable:
             self.forward_enable = False
             msg = Twist()
             self.move_callback(msg)
-        elif msg.data < 50:
+        elif msg.data < 30:
             self.forward_enable = True
 
     def move_callback(self, msg):

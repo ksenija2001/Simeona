@@ -95,7 +95,7 @@ class UARTComNode(Node):
         bytes_msg.insert(2, len(msg.data)*4+3)
         bytes_msg.append(Code.STOP)
         
-        self.get_logger().info(f"{bytes_msg}")
+        # self.get_logger().info(f"{bytes_msg}")
 
         self.acknowledged = False
         while not self.acknowledged:
@@ -132,7 +132,7 @@ class UARTComNode(Node):
 
                         self._odom_message_pub.publish(odom_msg)
                     elif code == Code.ACK:
-                        self.get_logger().info("Acknowledged")
+                        # self.get_logger().info("Acknowledged")
                         self.acknowledged = True
 
                 #self._ser.reset_input_buffer()

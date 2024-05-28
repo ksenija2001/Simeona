@@ -68,7 +68,7 @@ class TOFNode(Node):
         
     def get_distances(self):
         while self.running:
-            # self.get_logger().info(str(self.ser.inWaiting()))
+            #self.get_logger().info(str(self.ser.inWaiting()))
             if self.ser.inWaiting() >= 16:
 
                 TOF_data = []
@@ -94,7 +94,7 @@ class TOFNode(Node):
                         msg.data = int(TOF_distance)
                         self.tof_distance_publisher.publish(msg)
 
-            time.sleep(0.05)
+            time.sleep(0.005)
 def main():
     rclpy.init()
 
