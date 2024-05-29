@@ -30,6 +30,7 @@ from example_interfaces.msg import Int64
 import math
 from threading import Event
 import time
+import numpy as np
 
 class MovementNode(Node):
     def __init__(self):
@@ -41,6 +42,9 @@ class MovementNode(Node):
                 ('Kp', rclpy.Parameter.Type.DOUBLE),
                 ('Ti', rclpy.Parameter.Type.DOUBLE),
                 ('Td', rclpy.Parameter.Type.DOUBLE),
+                ('Kp_rot', rclpy.Parameter.Type.DOUBLE),
+                ('Ti_rot', rclpy.Parameter.Type.DOUBLE),
+                ('Td_rot', rclpy.Parameter.Type.DOUBLE),
                 ('max_speed', rclpy.Parameter.Type.DOUBLE),
                 ('ramp', rclpy.Parameter.Type.DOUBLE),
             ]
@@ -49,9 +53,13 @@ class MovementNode(Node):
         self.Kp = self.get_parameter('Kp').value
         self.Ti = self.get_parameter('Ti').value
         self.Td = self.get_parameter('Td').value
+        self.Kp_rot = self.get_parameter('Kp_rot').value
+        self.Ti_rot = self.get_parameter('Ti_rot').value
+        self.Td_rot = self.get_parameter('Td_rot').value
+
         self.max_speed =  self.get_parameter('max_speed').value
         self.ramp = self.get_parameter('ramp').value
-        self.control = 0
+        self.control = [0, 0]
 
         self._command_pub      = self.create_publisher(Command, "transmit", 10)
         self._move_sub     = self.create_subscription(Twist, "cmd_vel", self.move_callback, 10)
@@ -114,67 +122,95 @@ class MovementNode(Node):
 
         self._command_pub.publish(msg)
 
-    def calculate_pid(self, distance_moved, goal_distance):
-        direct = 1
-        if goal_distance < 0:
-            direct = -1
-        error = abs(goal_distance) - distance_moved
+    def calculate_pid(self, derror, terror, direction):
+        P = derror * self.Kp 
+        P_rot = terror * self.Kp_rot
 
-        P = error * self.Kp 
-
-        if abs(P) > self.control + self.ramp:
-            self.control += self.ramp * P/(abs(P) + 1e-10)
+        if abs(P) > self.control[0] + self.ramp:
+            self.control[0] += self.ramp * np.sign(P)
         else:
-            self.control = P
+            self.control[0] = P
 
-        if abs(self.control) > self.max_speed:
-            self.control = self.max_speed * self.control/(abs(self.control) + 1e-10)
+        if abs(self.control[0]) > self.max_speed:
+            self.control[0] = self.max_speed * np.sign(self.control[0])
 
-        self.control *= direct
+        if abs(P_rot) > self.control[1] + self.ramp:
+            self.control[1] += self.ramp * np.sign(P_rot)
+        else:
+            self.control[1] = P_rot
+
+        if abs(self.control[1]) > 0.5: #rad/s
+            self.control[1] = 1 * np.sign(self.control[1])
+
+        self.get_logger().info(f"Control: {self.control[0]*direction}, {self.control[1]}")
 
         twist = Twist()
-        twist.linear.x = self.control
+        twist.linear.x = self.control[0] * direction
+        twist.angular.z = self.control[1]
         self.move_callback(twist)
 
+    def normalize_angle(self, angle):
+        if angle > math.pi:
+            angle -= 2*math.pi
+        elif angle < -math.pi:
+            angle += 2*math.pi
+
+        return angle
     def execute_move_distance(self, goal_handle):
         self.get_logger().info("Movement node executing goal")
 
         goal_distance = float(self.move_goal.goal_distance)
         goal_theta = float(self.move_goal.goal_theta)
+        self.control = [0, 0]
 
         self.get_logger().info("Goal distance: " + str(goal_distance))
         
         result = MoveDistance.Result()
-        twist = Twist()
+        feedback_msg = MoveDistance.Feedback()
 
-        self.control = 0
-        feedback_count = 0
-        distance_moved = 0
+        goal_x = abs(goal_distance)*math.cos(goal_theta) + self.odom.x
+        goal_y = abs(goal_distance)*math.sin(goal_theta) + self.odom.y
+        # -1 for reverse, 1 for forward
+        direction = np.sign(goal_distance)
+
+        goal_pose = OdometryClass(goal_x, goal_y, goal_theta, 0.0, 0.0)
         start_pose = OdometryClass(self.odom.x, self.odom.y, self.odom.theta, 0.0, 0.0)
 
-        while ( not self.cancel_goal.is_set() and \
-                distance_moved <= (abs(goal_distance) - 0.003)
-        ):
-            distance_moved = math.sqrt((start_pose.x - self.odom.x)**2 + (start_pose.y - self.odom.y)**2)
-            self.calculate_pid(distance_moved, goal_distance)
+        theta_error = self.normalize_angle(goal_theta - self.odom.theta)
 
-            if feedback_count == 5:
-                feedback_count = 0
+        init_error = math.sqrt((start_pose.x - goal_pose.x)**2 + (start_pose.y - goal_pose.y)**2)
+        distance_moved = 0
+        distance_error = init_error - distance_moved
 
-                feedback_msg = MoveDistance.Feedback()
-                feedback_msg.feedback_distance = distance_moved
-                goal_handle.publish_feedback(feedback_msg)
+        feedback_msg.feedback_distance = distance_error
+        feedback_msg.feedback_theta = theta_error
+        goal_handle.publish_feedback(feedback_msg)
 
-            feedback_count += 1
+        while not self.cancel_goal.is_set() and \
+            (abs(distance_error) > 0.003 or abs(theta_error) > 0.0349):
+            # distance tolerance 3mm, theta tolerance 2deg
+
+            self.calculate_pid(distance_error, theta_error, direction)
+
+            # Publish feedback how far the robot is from the goal
+            feedback_msg.feedback_distance = distance_error
+            feedback_msg.feedback_theta = theta_error
+            goal_handle.publish_feedback(feedback_msg)
+
+            distance_moved = math.sqrt((self.odom.x - start_pose.x)**2 + (self.odom.y - start_pose.y)**2)
+            distance_error = init_error - distance_moved
+
+            theta_error = self.normalize_angle(goal_theta - self.odom.theta)
 
             time.sleep(0.01)
 
         # Resets parameters for next goal
         self.move_goal = None
-        self.control = 0
+        self.control = [0, 0]
         self.send_speed(0.0, 0.0)
+        time.sleep(0.01)
         self.send_speed(0.0, 0.0)
-        self.send_speed(0.0, 0.0)
+
 
         if self.cancel_goal.is_set():
             goal_handle.canceled()

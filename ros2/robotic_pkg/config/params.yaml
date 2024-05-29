@@ -19,6 +19,9 @@ movement_node:
     Kp: 3.0
     Ti: 0.01
     Td: 0.01
+    Kp_rot: 1.0
+    Ti_rot: 0.01
+    Td_rot: 0.01
     max_speed: 0.6 #m/s
     ramp: 0.01 #m/s
 
