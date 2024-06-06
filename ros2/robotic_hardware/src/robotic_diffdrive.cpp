@@ -1,21 +1,17 @@
-#include "diffdrive_arduino/diffdrive_arduino.h"
+#include "robotic_hardware/robotic_diffdrive.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 
-#include "include/robotic_hardware/definitions.hpp"
+#include "robotic_hardware/definitions.hpp"
 
-RoboticDiffDrive::RoboticDiffDrive()
-    : logger_(rclcpp::get_logger("RoboticDiffDrive"))
+CallbackReturn RoboticDiffDrive::on_init(
+    const hardware_interface::HardwareInfo &info)
 {
-}
-
-return_type RoboticDiffDrive::configure(const hardware_interface::HardwareInfo &info)
-{
-    if (configure_default(info) != return_type::OK)
+    if (hardware_interface::SystemInterface::on_init(info) != CallbackReturn::SUCCESS)
     {
-        return return_type::ERROR;
+        return CallbackReturn::ERROR;
     }
 
-    RCLCPP_INFO(logger_, "Configuring...");
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Configuring...");
 
     time_ = std::chrono::system_clock::now();
 
@@ -33,10 +29,9 @@ return_type RoboticDiffDrive::configure(const hardware_interface::HardwareInfo &
     // Set up the Arduino
     nucleo_.setup(cfg_.device, cfg_.baud_rate, cfg_.timeout);
 
-    RCLCPP_INFO(logger_, "Finished Configuration");
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Finished Configuration");
 
-    status_ = hardware_interface::status::CONFIGURED;
-    return return_type::OK;
+    return CallbackReturn::SUCCESS;
 }
 
 std::vector<hardware_interface::StateInterface> RoboticDiffDrive::export_state_interfaces()
@@ -63,50 +58,42 @@ std::vector<hardware_interface::CommandInterface> RoboticDiffDrive::export_comma
     return command_interfaces;
 }
 
-return_type RoboticDiffDrive::start()
+CallbackReturn RoboticDiffDrive::on_configure(
+    const rclcpp_lifecycle::State &)
 {
-    RCLCPP_INFO(logger_, "Starting Controller...");
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Starting Controller...");
 
-    const msg[] = {WHEEL_DIAMETER, WHEEL_TRACK};
+    const float msg[] = {WHEEL_DIAMETER, WHEEL_TRACK};
     bool response = nucleo_.sendMsg(msg, CONFIG, CONFIG_LEN);
 
     if (response)
-        RCLCPP_INFO(logger_, "Config message received");
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Config message received");
 
-    const msg[] = {0, 0, 1.57};
-    bool response = nucleo_.sendMsg(msg, INIT, INIT_LEN);
+    const float msg_reset[] = {0.0, 0.0, 1.57};
+    response = nucleo_.sendMsg(msg_reset, INIT, INIT_LEN);
 
     if (response)
-        RCLCPP_INFO(logger_, "Init message received");
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Init message received");
 
-    status_ = hardware_interface::status::STARTED;
-
-    return return_type::OK;
+    return CallbackReturn::SUCCESS;
 }
 
-return_type RoboticDiffDrive::stop()
+CallbackReturn RoboticDiffDrive::on_deactivate(
+    const rclcpp_lifecycle::State & /*previous_state*/)
 {
-    RCLCPP_INFO(logger_, "Stopping Controller...");
-    status_ = hardware_interface::status::STOPPED;
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Stopping Controller...");
 
-    return return_type::OK;
+    return CallbackReturn::SUCCESS;
 }
 
-hardware_interface::return_type RoboticDiffDrive::read()
+return_type RoboticDiffDrive::read(
+    const rclcpp::Time & /*time*/, const rclcpp::Duration &period)
 {
-
-    // TODO fix chrono duration
-
-    // Calculate time delta
-    auto new_time = std::chrono::system_clock::now();
-    std::chrono::duration<double> diff = new_time - time_;
-    double deltaSeconds = diff.count();
-    time_ = new_time;
 
     if (!nucleo_.connected())
         return return_type::ERROR;
 
-    const msg[] = {0x01};
+    const float msg[] = {0x01};
     if (!nucleo_.sendMsg(msg, ODOM, 1))
         return return_type::ERROR;
 
@@ -121,13 +108,14 @@ hardware_interface::return_type RoboticDiffDrive::read()
     return return_type::OK;
 }
 
-hardware_interface::return_type RoboticDiffDrive::write()
+return_type RoboticDiffDrive::write(
+    const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
 
     if (!nucleo_.connected())
         return return_type::ERROR;
 
-    const msg[] = {left_.cmd * 1000, right_.cmd * 1000};
+    const float msg[] = {left_.cmd * 1000, right_.cmd * 1000};
     nucleo_.sendMsg(msg, SPEED, SPEED_LEN);
 
     return return_type::OK;

@@ -1,38 +1,36 @@
 #ifndef ROBOTIC_HARDWARE_NUCLEO_COMMS_H
 #define ROBOTIC_HARDWARE_NUCLEO_COMMS_H
 
-#include <serial/serial.h>
+#include <libserial/SerialPort.h>
 #include <cstring>
 
-namespace robotic_hardware
+union floatUnion
 {
-    union floatUnion
-    {
-        float f;
-        uint8_t u[sizeof(float)];
-    }
+    float f;
+    uint8_t u[sizeof(float)];
+};
 
-    class NucleoComms
-    {
-    public:
-        NucleoComms();
-        NucleoComms(const std::string &serial_device, int32_t baud_rate, int32_t timeout_ms)
-            : serial_conn_(serial_device, baud_rate, serial::Timeout::simpleTimeout(timeout_ms)) {}
+class NucleoComms
+{
+public:
+    NucleoComms();
+    NucleoComms(const std::string &serial_device, int32_t baud_rate, int32_t timeout_ms);
 
-        void setup(const std::string &serial_device, int32_t baud_rate, int32_t timeout_ms);
-        void floatToBytes(uint8_t *msg, int start, float data);
-        void bytesToFloat(float *msg, uint8_t data[4]);
+    void setup(const std::string &serial_device, int32_t baud_rate, int32_t timeout_ms);
+    void floatToBytes(LibSerial::DataBuffer msg, int start, float data);
+    void bytesToFloat(float *msg, LibSerial::DataBuffer data, int start);
 
-        bool connected() const { return serial_conn_.isOpen(); }
+    bool connected() const { return serial_conn_.IsOpen(); }
 
-        bool sendMsg(const float msg_to_send[], uint8_t code, int len);
-        *float NucleoComms::readMsg(uint8_t code, int len);
+    bool sendMsg(const float msg_to_send[], uint8_t code, int len);
+    void readMsg(float received[], uint8_t code, int len);
 
-    private:
-        serial::Serial serial_conn_;
-        uint8_t buffer_[30];
-        bool ack_;
-        floatUnion converter_;
-    }
-}
+private:
+    LibSerial::SerialPort serial_conn_;
+    LibSerial::DataBuffer buffer_;
+    bool ack_;
+    floatUnion converter_;
+    int timeout_ms;
+};
+
 #endif // ROBOTIC_HARDWARE_NUCLEO_COMMS_H

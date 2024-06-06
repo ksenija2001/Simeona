@@ -1,8 +1,13 @@
-from geometry_msgs.msg import Pose, Twist
+from geometry_msgs.msg import (
+    Twist,
+    Transform,
+    Pose,
+    Quaternion
+)
+from nav_msgs.msg import Odometry
 from tf_transformations import quaternion_from_euler, euler_from_quaternion
 from dataclasses import dataclass
 from robotic_pkg.Constants import Wheel
-from robotic_interfaces.msg import Odom
 import math
 
 @dataclass
@@ -25,18 +30,28 @@ class OdometryClass:
 
     def to_pose(self):
         p = Pose()
-        p.position.x, p.position.y = self.x, self.y
+        t = Transform()
+        q = Quaternion()
+
+        p.position.x, p.position.y, p.position.z = self.x, self.y, 0.0
+        t.translation.x, t.translation.y, t.translation.z = self.x, self.y, 0.0
         #                                  roll, pitch, yaw
-        x, y, z, w = quaternion_from_euler(0.0, 0.0, self.theta) 
-        p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w = x, y, z, w
-        return p
-    
-    def from_odom(self, odom: Odom):
-        self.x = odom.pose.x
-        self.y = odom.pose.y
-        self.theta = odom.pose.theta
-        self.linear_vel = 0.5*(odom.vel.left + odom.vel.right)
-        self.angular_vel = (odom.vel.right - odom.vel.left)/(Wheel.TRACK/1000)
+        q.x, q.y, q.z, q.w = quaternion_from_euler(0.0, 0.0, self.theta) 
+        p.orientation = q
+        t.rotation = q
+
+        return p, t
+
+    def from_odometry(self, msg:Odometry):
+        p = msg.pose.pose
+        t = msg.twist.twist
+
+        self.x = p.position.x
+        self.y = p.position.y
+        x, y, z, w = p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w
+        _, _, self.theta = euler_from_quaternion([x, y, z, w])
+        self.linear_vel =  t.linear.x / (math.cos(self.theta) + 1e-20)
+        self.angular_vel = t.linear.y / (math.sin(self.theta) + 1e-20)
 
     def to_twist(self):
         t = Twist()

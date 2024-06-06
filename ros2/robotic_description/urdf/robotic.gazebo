@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<robot>
+<gazebo>
+	<plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+		<robotNamespace>/cassius_robot </robotNamespace>
+	</plugin>
+	<plugin name="gazebo_ros_joint_state_publisher"
+          filename="libgazebo_ros_joint_state_publisher.so">
+		<update_rate>20</update_rate>
+		<joint_name>left_wheel_joint</joint_name>
+		<joint_name>right_wheel_joint</joint_name>
+	</plugin>
+	<plugin name="differential_drive_controller" filename="libgazebo_ros_diff_drive.so">
+        <update_rate>20</update_rate>
+
+        <left_joint>left_wheel_joint</left_joint>
+        <right_joint>right_wheel_joint</right_joint>
+
+        <!-- The distance from the center of one wheel to the other, in meters, defaults to 0.34 m -->
+        <wheel_separation>0.1572</wheel_separation>
+
+        <!-- Diameter of the wheels, in meters, defaults to 0.15 m -->
+        <wheel_diameter>0.035</wheel_diameter>
+
+        <!-- Topic to receive geometry_msgs/Twist message commands, defaults to `cmd_vel` -->
+        <command_topic>cmd_vel</command_topic>
+
+        <!-- Topic to publish nav_msgs/Odometry messages, defaults to `odom` -->
+        <odometry_topic>sim/odom</odometry_topic>
+
+        <!-- Odometry frame, defaults to `odom` -->
+        <odometry_frame>sim/odom_frame</odometry_frame>
+
+        <!-- Robot frame to calculate odometry from, defaults to `base_footprint` -->
+        <robot_base_frame>base_footprint</robot_base_frame>
+
+        <!-- Odometry source, 0 for ENCODER, 1 for WORLD, defaults to WORLD -->
+        <odometry_source>1</odometry_source>
+
+        <!-- Set to true to publish transforms for the wheel links, defaults to false -->
+        <publish_wheel_TF>true</publish_wheel_TF>
+
+        <!-- Set to true to publish transforms for the odometry, defaults to true -->
+        <publish_odom>true</publish_odom>
+
+    </plugin>
+</gazebo>
+
+<gazebo reference="base_link">
+<mu1>0.2</mu1>
+<mu2>0.2</mu2>
+<material>Gazebo/Green</material>
+</gazebo>
+
+</robot>

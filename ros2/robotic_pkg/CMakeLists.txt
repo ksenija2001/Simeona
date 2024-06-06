@@ -13,6 +13,7 @@ find_package(rclpy REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(robotic_interfaces REQUIRED)
+find_package(ros2_laser_scan_matcher REQUIRED)
 
 # Include Cpp "include" directory
 include_directories(include)

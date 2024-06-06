@@ -2,22 +2,20 @@
 import rclpy
 from rclpy.node import Node
 
-from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import (
+    Twist,
+    TransformStamped
+)
 from nav_msgs.msg import Odometry
+
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.action.server import GoalResponse, CancelResponse, ActionServer
 
+from robotic_interfaces.msg import Command
 
-from robotic_interfaces.msg import (
-    Odom, 
-    Command
-)
-from robotic_interfaces.action import (
-    MoveDistance
-)
+from robotic_interfaces.action import MoveDistance
 
 from robotic_pkg.Constants import (
     Code, 
@@ -26,6 +24,7 @@ from robotic_pkg.Constants import (
 from robotic_pkg.Odometry import OdometryClass
 
 from example_interfaces.msg import Int64
+
 
 import math
 from threading import Event
@@ -61,19 +60,11 @@ class MovementNode(Node):
         self.ramp = self.get_parameter('ramp').value
         self.control = [0, 0]
 
-        self._command_pub      = self.create_publisher(Command, "transmit", 10)
-        self._move_sub     = self.create_subscription(Twist, "cmd_vel", self.move_callback, 10)
+        self._command_pub = self.create_publisher(Command, "transmit", 10)
+        self._move_sub    = self.create_subscription(Twist, "cmd_vel", self.move_callback, 10)
 
-        self._odom_message_sub = self.create_subscription(Odom, "odom_message", self.odom_callback, 1, callback_group=MutuallyExclusiveCallbackGroup())
+        self._odom_sub = self.create_subscription(Odometry, "wheel/odom", self.odom_callback, 1, callback_group=MutuallyExclusiveCallbackGroup())
         self._reset_odom_pub = self.create_publisher(Bool, "reset_odom", 10)
-
-        # When an odometry message is received from the connected device it is 
-        # processed and published for other nodes to use it
-        self._odom_pub = self.create_publisher(
-            Odometry,
-            "odom",
-            10
-        )
 
         self._reset_subscriber = self.create_subscription(
             Bool,
@@ -98,22 +89,25 @@ class MovementNode(Node):
         self.move_goal = None
         self.cancel_goal = Event()
 
-        self.odom = OdometryClass(0.0, 0.0, 1.57, 0.0, 0.0)
+        self.odom = OdometryClass(0.0, 0.0, 0.0, 0.0, 0.0)
 
         self.print_count = 0
         self.reset_odom(Bool())
         time.sleep(0.1)
         #self.send_speed(0.0, 0.0)
 
+    def odom_callback(self, msg):
+        self.odom.from_odometry(msg)
+
     def reset_odom(self, msg):
         reset_msg = Command()
         reset_msg.code = Code.INIT
-        reset_msg.data = [0.0, 0.0, 1.57]
+        reset_msg.data = [0.0, 0.0, 0.0]
 
         self._command_pub.publish(reset_msg)
         self.get_logger().info("Reset position message acknowledged")
 
-        self.odom.reset(0.0, 0.0, 1.57)
+        self.odom.reset(0.0, 0.0, 0.0)
 
     def send_speed(self, left_speed, right_speed):
         msg = Command()
@@ -140,13 +134,13 @@ class MovementNode(Node):
             self.control[1] = P_rot
 
         if abs(self.control[1]) > 0.5: #rad/s
-            self.control[1] = 1 * np.sign(self.control[1])
+            self.control[1] = 0.5 * np.sign(self.control[1])
 
         self.get_logger().info(f"Control: {self.control[0]*direction}, {self.control[1]}")
 
         twist = Twist()
         twist.linear.x = self.control[0] * direction
-        twist.angular.z = self.control[1]
+        twist.angular.z = self.control[1] 
         self.move_callback(twist)
 
     def normalize_angle(self, angle):
@@ -186,8 +180,11 @@ class MovementNode(Node):
         feedback_msg.feedback_theta = theta_error
         goal_handle.publish_feedback(feedback_msg)
 
+        last_distance_error = distance_error
+
         while not self.cancel_goal.is_set() and \
-            (abs(distance_error) > 0.003 or abs(theta_error) > 0.0349):
+            (abs(distance_error) > 0.003 or \
+             abs(theta_error) > 0.0349): 
             # distance tolerance 3mm, theta tolerance 2deg
 
             self.calculate_pid(distance_error, theta_error, direction)
@@ -198,11 +195,12 @@ class MovementNode(Node):
             goal_handle.publish_feedback(feedback_msg)
 
             distance_moved = math.sqrt((self.odom.x - start_pose.x)**2 + (self.odom.y - start_pose.y)**2)
+            last_distance_error = distance_error
             distance_error = init_error - distance_moved
 
             theta_error = self.normalize_angle(goal_theta - self.odom.theta)
 
-            time.sleep(0.01)
+            time.sleep(0.03)
 
         # Resets parameters for next goal
         self.move_goal = None
@@ -211,13 +209,15 @@ class MovementNode(Node):
         time.sleep(0.01)
         self.send_speed(0.0, 0.0)
 
-
-        if self.cancel_goal.is_set():
-            goal_handle.canceled()
+        try:
+            if self.cancel_goal.is_set():
+                goal_handle.canceled()
+                result.success = False
+            else:
+                goal_handle.succeed()
+                result.success = True
+        except:
             result.success = False
-        else:
-            goal_handle.succeed()
-            result.success = True
 
         self.cancel_goal.clear()
         
@@ -236,33 +236,16 @@ class MovementNode(Node):
     def goal_cancel_callback(self, cancel_request):
         self.cancel_goal.set()
         return CancelResponse.ACCEPT
-        
-    def odom_callback(self, msg):
-        self.odom.from_odom(msg)
 
-        odom = Odometry()
-        odom.header.stamp = self.get_clock().now().to_msg()
-        odom.header.frame_id = "odom"
-        odom.child_frame_id = "base_link"
-        
-        odom.pose.pose  = self.odom.to_pose()
-        #odom.pose.covariance = []
-        odom.twist.twist = self.odom.to_twist()
-        #odom.twist.covariance = []
-
-        self._odom_pub.publish(odom)
-
-        if self.print_count % 50 == 0:
-            self.get_logger().info(str(self.odom))
-            self.print_count = 0
-        self.print_count += 1
 
     def falling_detection(self, msg):
-        if msg.data > 30 and self.forward_enable:
+        if msg.data > 50 and self.forward_enable:
             self.forward_enable = False
             msg = Twist()
             self.move_callback(msg)
-        elif msg.data < 30:
+
+            self.cancel_goal.set()
+        elif msg.data < 50:
             self.forward_enable = True
 
     def move_callback(self, msg):
@@ -274,7 +257,18 @@ class MovementNode(Node):
 
         self.get_logger().info(f'left={left:.3f}, right={right:.3f}')
 
-        #self.get_logger().info(f"linear: {linear}, forward: {self.forward_enable}")
+        # wheel_joints = JointState()
+        # wheel_joints.name.append("left_wheel_joint")
+        # wheel_joints.name.append("right_wheel_joint")
+        # wheel_joints.position.append(1.0)
+        # wheel_joints.position.append(1.0)
+        # wheel_joints.velocity.append(left)
+        # wheel_joints.velocity.append(right)
+
+        # self._joint_pub.publish(wheel_joints)
+
+        time.sleep(0.01)
+
         if not self.forward_enable and linear > 0:
             self.send_speed(0, 0)
         else:

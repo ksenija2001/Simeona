@@ -4,21 +4,21 @@ from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
-from robotic_interfaces.msg import (
-    Command,
-    Odom
-)
+from robotic_interfaces.msg import Command
 from nav_msgs.msg import Odometry
+
 from std_msgs.msg import Bool
 from robotic_pkg.Constants import (
     Code, 
     Wheel
 )
+from robotic_pkg.Odometry import OdometryClass
 
 from threading import (
     Thread,
     Event
 )
+
 import serial
 from serial.serialutil import SerialException
 import time
@@ -51,11 +51,12 @@ class UARTComNode(Node):
             callback_group=ReentrantCallbackGroup()
         )
 
-        self._odom_message_pub = self.create_publisher(
-            Odom,
-            "odom_message",
-            1,
-            callback_group=ReentrantCallbackGroup()
+        # When an odometry message is received from the connected device it is 
+        # processed and published for other nodes to use it
+        self._odom_pub = self.create_publisher(
+            Odometry,
+            "wheel/odom",
+            10
         )
 
         self.acknowledged = False
@@ -117,20 +118,27 @@ class UARTComNode(Node):
                 # Message is valid if last byte is the STOP byte
                 if last == Code.STOP:
                     if code == Code.ODOM:
-                        #self.get_logger().info("ODOM")
+                        x = float(struct.unpack('f', data_arr[0:4])[0]) / 1000
+                        y = float(struct.unpack('f', data_arr[4:8])[0]) / 1000
+                        theta = float(struct.unpack('f', data_arr[8:12])[0])
+                        left  = float(struct.unpack('f', data_arr[12:16])[0]) / 1000
+                        right = float(struct.unpack('f', data_arr[16:20])[0]) / 1000
 
-                        odom_msg = Odom()
+                        linear_vel = 0.5*(left + right)
+                        angular_vel = (right - left)/(Wheel.TRACK/1000)
+                        # Temporary object for making conversions
+                        o = OdometryClass(x, y, theta, linear_vel, angular_vel)
 
-                        odom_msg.pose.x = float(struct.unpack('f', data_arr[0:4])[0]) / 1000
-                        #self.get_logger().info(str(odom_msg.pose.x))
-                        odom_msg.pose.y = float(struct.unpack('f', data_arr[4:8])[0]) / 1000
-                        #self.get_logger().info(str(odom_msg.pose.y))
+                        odom = Odometry()
 
-                        odom_msg.pose.theta = float(struct.unpack('f', data_arr[8:12])[0])
-                        odom_msg.vel.left  = float(struct.unpack('f', data_arr[12:16])[0]) / 1000
-                        odom_msg.vel.right = float(struct.unpack('f', data_arr[16:20])[0]) / 1000
+                        odom.header.stamp = self.get_clock().now().to_msg()
+                        odom.header.frame_id = "odom"
+                        odom.child_frame_id = "base_link"
+                        odom.pose.pose, _ = o.to_pose()
+                        odom.twist.twist = o.to_twist()
 
-                        self._odom_message_pub.publish(odom_msg)
+                        self._odom_pub.publish(odom)
+                        
                     elif code == Code.ACK:
                         # self.get_logger().info("Acknowledged")
                         self.acknowledged = True

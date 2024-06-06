@@ -1,6 +1,3 @@
-#ifndef ROBOTIC_DIFFDRIVE_H
-#define ROBOTIC_DIFFDRIVE_H
-
 #include <string>
 
 struct Config
@@ -12,5 +9,3 @@ struct Config
     int baud_rate = 115200;
     int timeout = 500;
 };
-
-#endif // ROBOTIC_DIFFDRIVE_H

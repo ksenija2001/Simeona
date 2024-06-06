@@ -15,8 +15,6 @@ find_package(geometry_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Command.msg"
-  "msg/Velocity.msg"
-  "msg/Odom.msg"
   "action/MoveDistance.action"
   DEPENDENCIES geometry_msgs
 # "srv/"

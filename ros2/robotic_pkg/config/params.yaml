@@ -9,7 +9,8 @@ sllidar_node:
     serial_port: "/dev/ttyUSB_LIDAR"
     serial_baudrate: 256000
     frame_id: "laser"
-    inverted: false
+    world_frame_id: "base_link"
+    inverted: true
     angle_compensate: true
     scan_mode: "Sensitivity" #16kHz sample rate
     scan_frequency: 10.0 # 10Hz speed of lidar
@@ -19,7 +20,7 @@ movement_node:
     Kp: 3.0
     Ti: 0.01
     Td: 0.01
-    Kp_rot: 1.0
+    Kp_rot: 1.5
     Ti_rot: 0.01
     Td_rot: 0.01
     max_speed: 0.6 #m/s
@@ -30,3 +31,11 @@ tof_node:
     id: 1
     device_name: "/dev/ttyAMA0"
     baudrate: 115200
+
+laser_scan_matcher:
+  ros__parameters:
+    publish_odom: "laser/odom"
+    odom_frame: "odom"
+    publish_tf: false
+    base_frame: "base_link"
+
