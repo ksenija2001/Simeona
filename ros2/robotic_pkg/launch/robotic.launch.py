@@ -2,8 +2,9 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
-
+from launch.actions import TimerAction
 from launch_ros.descriptions import ParameterValue
+
 from launch.substitutions import Command
 
 def generate_launch_description():
@@ -92,18 +93,25 @@ def generate_launch_description():
         name='ekf_filter_node',
         output='screen',
         parameters=[ekf_config]
+    )
 
+    # If not delayed, it can occur that movement node is launched before uart_node and the reset message is not sent
+    movement_delayed = TimerAction(
+        period=2.0,
+        actions=[
+            movement
+        ]
     )
 
     return LaunchDescription(
         [
-            joint_state_publisher,
             uart,
+            joint_state_publisher,
             lidar,
             scan_matcher,
             tof,
-            movement,
             localization,
-            node_robot_state_publisher
+            node_robot_state_publisher,
+            movement_delayed 
         ]
     )

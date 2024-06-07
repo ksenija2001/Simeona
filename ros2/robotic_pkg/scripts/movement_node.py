@@ -93,8 +93,6 @@ class MovementNode(Node):
 
         self.print_count = 0
         self.reset_odom(Bool())
-        time.sleep(0.1)
-        #self.send_speed(0.0, 0.0)
 
     def odom_callback(self, msg):
         self.odom.from_odometry(msg)
@@ -151,6 +149,8 @@ class MovementNode(Node):
 
         return angle
     def execute_move_distance(self, goal_handle):
+        # Goal distance - distance to pass during moving
+        # Goal theta - orientation for ending
         self.get_logger().info("Movement node executing goal")
 
         goal_distance = float(self.move_goal.goal_distance)
@@ -184,8 +184,8 @@ class MovementNode(Node):
 
         while not self.cancel_goal.is_set() and \
             (abs(distance_error) > 0.003 or \
-             abs(theta_error) > 0.0349): 
-            # distance tolerance 3mm, theta tolerance 2deg
+             abs(theta_error) > 0.0872): 
+            # distance tolerance 3mm, theta tolerance 5deg
 
             self.calculate_pid(distance_error, theta_error, direction)
 
@@ -208,10 +208,13 @@ class MovementNode(Node):
         self.send_speed(0.0, 0.0)
         time.sleep(0.01)
         self.send_speed(0.0, 0.0)
+        time.sleep(0.01)
+        self.send_speed(0.0, 0.0)
+
 
         try:
             if self.cancel_goal.is_set():
-                goal_handle.canceled()
+                goal_handle.abort()
                 result.success = False
             else:
                 goal_handle.succeed()

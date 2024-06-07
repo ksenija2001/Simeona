@@ -20,11 +20,11 @@ movement_node:
     Kp: 3.0
     Ti: 0.01
     Td: 0.01
-    Kp_rot: 1.5
+    Kp_rot: 2.0
     Ti_rot: 0.01
     Td_rot: 0.01
     max_speed: 0.6 #m/s
-    ramp: 0.01 #m/s
+    ramp: 0.02 #m/s
 
 tof_node:
   ros__parameters:
