@@ -1,5 +1,0 @@
-Pri kraju mapiranja je doslo do proklizavanja tockova jer se robot nasukao na prag kod kuhinje pri velikim brzinama.
-
-Ipak, jer uzima samo brzinu sa odometrije tockova, a poziciju sa lidara, mapiranje se nastavilo kao da se nista nije desilo, i ako je odometrija sa tockova otisla daleko.
-
-Brzina sa tockova obezbedjuje da lidar frame nikada ne driftuje dok robot stoji, jer ekf zna da se ne krece.

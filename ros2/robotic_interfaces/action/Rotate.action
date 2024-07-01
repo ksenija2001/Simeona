@@ -1,6 +1,0 @@
-float64 goal_theta
-float64 speed
----
-bool success
----
-Position feedback_theta

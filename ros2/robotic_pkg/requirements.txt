@@ -1,3 +1,0 @@
-pyserial
-transforms3d
-libserial-dev

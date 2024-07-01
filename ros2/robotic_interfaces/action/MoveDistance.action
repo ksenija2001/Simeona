@@ -1,7 +1,0 @@
-float64 goal_distance
-float64 goal_theta
----
-bool success
----
-float64 feedback_distance
-float64 feedback_theta

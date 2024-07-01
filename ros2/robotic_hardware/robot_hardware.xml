@@ -1,9 +1,0 @@
-<library path="robotic_diffdrive">
-  <class name="robotic_diffdrive/RoboticDiffDrive"
-         type="RoboticDiffDrive"
-         base_class_type="hardware_interface::SystemInterface">
-    <description>
-      Hardware Interface for Differential Drive Nucleo controller.
-    </description>
-  </class>
-</library>
