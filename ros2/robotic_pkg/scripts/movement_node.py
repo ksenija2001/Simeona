@@ -66,14 +66,14 @@ class MovementNode(Node):
         self._odom_sub = self.create_subscription(Odometry, "wheel/odom", self.odom_callback, 1, callback_group=MutuallyExclusiveCallbackGroup())
         self._reset_odom_pub = self.create_publisher(Bool, "reset_odom", 10)
 
-        self._reset_subscriber = self.create_subscription(
+        self._reset_sub = self.create_subscription(
             Bool,
             "reset_odom",
             self.reset_odom,
             10        
         )
 
-        self.tof_subscriber = self.create_subscription(Int64, 'tof/distance', self.falling_detection, 10)
+        self.tof_sub = self.create_subscription(Int64, 'tof/distance', self.falling_detection, 10)
         self.forward_enable = True
 
         self.move_distance = ActionServer(
@@ -180,8 +180,6 @@ class MovementNode(Node):
         feedback_msg.feedback_theta = theta_error
         goal_handle.publish_feedback(feedback_msg)
 
-        last_distance_error = distance_error
-
         while not self.cancel_goal.is_set() and \
             (abs(distance_error) > 0.003 or \
              abs(theta_error) > 0.0872): 
@@ -195,7 +193,6 @@ class MovementNode(Node):
             goal_handle.publish_feedback(feedback_msg)
 
             distance_moved = math.sqrt((self.odom.x - start_pose.x)**2 + (self.odom.y - start_pose.y)**2)
-            last_distance_error = distance_error
             distance_error = init_error - distance_moved
 
             theta_error = self.normalize_angle(goal_theta - self.odom.theta)
@@ -259,16 +256,6 @@ class MovementNode(Node):
         right = linear - angular
 
         self.get_logger().info(f'left={left:.3f}, right={right:.3f}')
-
-        # wheel_joints = JointState()
-        # wheel_joints.name.append("left_wheel_joint")
-        # wheel_joints.name.append("right_wheel_joint")
-        # wheel_joints.position.append(1.0)
-        # wheel_joints.position.append(1.0)
-        # wheel_joints.velocity.append(left)
-        # wheel_joints.velocity.append(right)
-
-        # self._joint_pub.publish(wheel_joints)
 
         time.sleep(0.01)
 
