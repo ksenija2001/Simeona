@@ -1,11 +1,11 @@
 # Motor control 
 
 The code is divided into 3 modules:
-- [Odometry](Roobotic/Core/Inc/odom.h)
-- [UART](Robotic/Core/Inc/uart.h)
-- [Motor Control](Robotic/Core/Inc/motor_control.h)
+- [Odometry](Roobotic/Core/Src/odom.c)
+- [UART](Robotic/Core/Src/uart.c)
+- [Motor Control](Robotic/Core/Src/motor_control.c)
 
-Each module takes advantage of different inbuilt functionalities which can be found on most of their microcontrollers.
+Each module takes advantage of different inbuilt functionalities of the STM32 Nucleo F411RE, which are also present in other Nucleo development boards and microcontrollers.
 These functionalities and how to set them up so they actually work are documented [here](Robotic/README.md).
 
 For a more throughout explanation on why all of these modules are needed and how they fit in the whole project take a look at my [Bachelor project](docs/Diplomski_v3.pdf).
