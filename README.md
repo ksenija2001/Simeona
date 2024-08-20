@@ -1,19 +1,14 @@
 # Motor control 
 
-## Summary
-
-As is innate to microcontrollers, everything is handled through interrupts.
-Interrupts allow the processor to stay idle when there is no data to be processed, also they provide faster reaction times for events.
-
 The code is divided into 3 modules:
-- [Odometry](Core/Inc/odom.h)
-- [UART](Core/Inc/uart.h)
-- [Motor Control](Core/Inc/motor_control.h)
+- [Odometry](Roobotic/Core/Inc/odom.h)
+- [UART](Robotic/Core/Inc/uart.h)
+- [Motor Control](Robotic/Core/Inc/motor_control.h)
 
 Each module takes advantage of different inbuilt functionalities which can be found on most of their microcontrollers.
-These functionalities and how to set them up so they actually work are documented.
+These functionalities and how to set them up so they actually work are documented [here](Robotic/README.md).
 
-For a more throughout explanation on why all of these modules are needed and how they fit in the whole project take a look at [Bachelor](docs/Diplomski_v3.pdf).
+For a more throughout explanation on why all of these modules are needed and how they fit in the whole project take a look at my [Bachelor project](docs/Diplomski_v3.pdf).
 
 ## Components and tools
 
