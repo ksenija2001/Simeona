@@ -1,7 +1,7 @@
 # Motor control 
 
 The code is divided into 3 modules:
-- [Odometry](Roobotic/Core/Src/odom.c)
+- [Odometry](Robotic/Core/Src/odom.c)
 - [UART](Robotic/Core/Src/uart.c)
 - [Motor Control](Robotic/Core/Src/motor_control.c)
 
