@@ -1,12 +1,12 @@
 # Motor control 
 
-The code is divided into 3 modules:
+The code is divided into 3 modules, where each of them can be used by itself with minor adjustments:
 - [Odometry](Robotic/Core/Src/odom.c)
 - [UART](Robotic/Core/Src/uart.c)
 - [Motor Control](Robotic/Core/Src/motor_control.c)
 
-Each module takes advantage of different inbuilt functionalities of the STM32 Nucleo F411RE, which are also present in other Nucleo development boards and microcontrollers.
-These functionalities and how to set them up so they actually work are documented [here](Robotic/README.md).
+Each module takes advantage of different inbuilt functionalities of the STM32 Nucleo F411RE, which are also present in other Nucleo development boards and microcontrollers, in order to enable command driven movements - a Raspberry Pi mini-pc issues higher level commands.
+These functionalities and how to set them up (so they actually work) are documented [here](Robotic/README.md).
 
 For a more throughout explanation on why all of these modules are needed and how they fit in the whole project take a look at my [Bachelor project](docs/Diplomski_v3.pdf).
 
