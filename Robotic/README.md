@@ -1,5 +1,12 @@
 # Pinout
 
+The easiest way to find out which pins we need is to export the pinout of the MCU from STM32CubeIDE.
+
+File -> New -> STM32 Project, in the Commercial Part Number field type NUCLEO-F411RE and click through the rest of the setup to generate a project which has built-in information about the board we are using.
+The IOC menu can now export the pinout with alternate functions similar to the one from this project [pinout](../pinout/pinout.ods).
+
+
+
 
 
 # Main
