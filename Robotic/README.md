@@ -1,13 +1,30 @@
 # Pinout
 
-The easiest way to find out which pins we need is to export the pinout of the MCU from STM32CubeIDE.
+For choosing which peripherals to use for what inspect the reference manual. It is also important that the chosen peripherals use different pins for their alternate functions. In that way the following choices were made:
+ - TIM2 - PWM mode
+ - TIM1 and TIM3 - Encoder (Quadrature) mode
+ - USART2 (because TIM1 is already using the TX pin of USART1)
+ - TIM10 - PID timer
+ - TIM11 - UART read buffer timer
 
-File -> New -> STM32 Project, in the Commercial Part Number field type NUCLEO-F411RE and click through the rest of the setup to generate a project which has built-in information about the board we are using.
-The IOC menu can now export the pinout with alternate functions similar to the one from this project [pinout](../pinout/pinout.ods).
+The easiest way to find out which pins we need is to export the pinout of the MCU from STM32CubeIDE:
+ 1. File -> New -> STM32 Project
+ 2. In the Commercial Part Number field type NUCLEO-F411RE and choose the only suggestion that shows up in the table
+ 3. Click through the rest of the setup to generate a project which has built-in information about the board we are using
+You can now export the pinout with alternate functions from the IOC menu by clicking the Pinout drop down above the MCU.
 
+![pinout](../pictures/pinout_example.png)
 
+From this we can concur which pins need to be in which alternate functions to enable the mode we need:
+ - TIM1 CH1 and CH2 - PA8 and PA9 in AF1
+ - TIM2 CH1 and CH2 - PA0 and PA1 in AF1 
+ - TIM3 CH1 and CH2 - PA6 and PA7 in AF2
+ - USART2_TX and USART2_RX - PA2 and PA3 in AF7
 
+Since now we know which pins are in use and for what the shield schematic is straightforward in connecting them to the appropriate driver inputs and outputs.
+The software part only needs to tell the microcontroller on which port they are and in what alternate function.
 
+Depending on what bus the peripheral is, it's aproppirate clock source needs to be enabled also.
 
 # Main
 
