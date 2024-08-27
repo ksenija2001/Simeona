@@ -14,6 +14,9 @@ The following table contains information about additional material needed to ass
 |  LIDAR mounting screws |  M2x10mm |  4 | Top level |
 |  Motor mounting screws |  M3x10mm |  8 | Bottom level |
 |  Battery cover screws |  M2x8mm |  2 | Battery cover |
+|  Connecting screws |  M3x10mm |  12 | Between levels |
+|  Connecting bolts |  M3 |  12 | Between levels |
+
 
 </center>
 
