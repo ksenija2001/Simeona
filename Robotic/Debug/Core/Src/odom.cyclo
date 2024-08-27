@@ -1,4 +1,0 @@
-../Core/Src/odom.c:43:6:Encoders_Init	1
-../Core/Src/odom.c:104:10:Read_Encoders	3
-../Core/Src/odom.c:140:6:Reset_Encoders	1
-../Core/Src/odom.c:162:6:Config	1
