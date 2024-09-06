@@ -211,7 +211,7 @@ void TIM1_TRG_COM_TIM11_IRQHandler(void){
 	UART_Tim->SR &= ~TIM_SR_UIF;
 }
 
-
+// Converts uint8_t bytes into a float number
 float Read_Float(uint8_t msg[], uint8_t start)
 {
 	convert_float.u[0] = msg[start];
@@ -241,8 +241,9 @@ void Send_Buffer()
 // Returns a complete message from input buffer if it is valid
 void Read_Buffer(uint8_t* recv_data)
 {
+	// buffer_check doesn't discard the bytes from the buffer
 	first = buffer_check(&in_buf, in_buf.head);
-	code   = buffer_check(&in_buf, in_buf.head+1);
+	code  = buffer_check(&in_buf, in_buf.head+1);
 	len   = buffer_check(&in_buf, in_buf.head+2);
 	last  = buffer_check(&in_buf, in_buf.head+len);
 
@@ -269,6 +270,7 @@ void Send_Command(uint8_t code, float value[], uint8_t len)
 
 	size = sizeof(value[0]);
 
+	// Float numbers are sent in their byte form
 	for(uint8_t i=0; i<len/size; i++){
 		convert_float.f = value[i];
 

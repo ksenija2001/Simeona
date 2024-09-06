@@ -18,7 +18,7 @@ typedef struct {
 } sOutput_t;
 
 // Structure for linking left and right
-// motors with their respected timers
+// motor encoders with their respected timers
 typedef struct {
 	TIM_TypeDef* tim;
 } sTimer_t;

@@ -14,7 +14,7 @@ float q2;
 volatile uint32_t interrupt_counter = 0;
 float send_odom[7];
 
-
+// Definition for which ports and pins the driver is using for motor control
 sOutput_t BI2  = { .port = GPIOB, .pin = 10 };
 sOutput_t BI1  = { .port = GPIOC, .pin = 7 };
 sOutput_t AI2  = { .port = GPIOA, .pin = 5};
@@ -40,7 +40,6 @@ sMotor_t right_motor= {
 		.Ki = 0.08,
 		.Kd = 0.12,
 };
-
 
 
 // TIM2 CH1 and CH2 configuration as PWM output
@@ -234,7 +233,7 @@ void Set_Motor_Direction(int left, int right)
 	}
 }
 
-// Sets motor PWM value caclulated in speed loop
+// Sets motor PWM value calculated in speed loop
 void Set_Motor_PWM(unsigned int left, unsigned int right)
 {
 	// CCR1 value determines the duty cycle of the

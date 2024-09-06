@@ -7,6 +7,7 @@
 
 #include "odom.h"
 
+// Encoder configuration pin and timer definitions
 sOutput_t LEFTA   = { .port = GPIOA, .pin = 6 };
 sOutput_t LEFTB   = { .port = GPIOA, .pin = 7 };
 sOutput_t RIGHTA  = { .port = GPIOA, .pin = 8 };
@@ -15,6 +16,7 @@ sOutput_t RIGHTB  = { .port = GPIOA, .pin = 9 };
 sTimer_t LEFT  = { .tim = TIM1 };
 sTimer_t RIGHT = { .tim = TIM3 };
 
+// Current odometry data
 sOdom_t odom = {
 		.x = 0,
 		.y = 0,
@@ -25,8 +27,10 @@ sOdom_t odom = {
 		.right_inc = 0
 };
 
-int32_t last_left_enc  = 0; // left increments
-int32_t last_right_enc = 0; // right increments
+// Helper variables for calculating odometry based on the
+// current and last increments read from the encoder timers
+int32_t last_left_enc  = 0;
+int32_t last_right_enc = 0;
 int32_t curr_left_enc  = 0;
 int32_t curr_right_enc = 0;
 
@@ -35,11 +39,14 @@ float delta_right = 0;
 float delta_distance = 0;
 float delta_theta    = 0;
 
+// Variables used for calculating odometry that can be
+// changed by user request (for odometry calibration)
 volatile float wheel_diameter = 70;
 volatile float wheel_distance = 166.42;
 float inc_mm = 1;
 float inc_rad = 1;
 
+// Setup for encoders in quadrature mode
 void Encoders_Init(){
 
 	// Enable clock for GPIOA (encoder output)
@@ -96,6 +103,8 @@ void Encoders_Init(){
 	RIGHT.tim->EGR |= (1 << 0);
 	LEFT.tim->EGR |= (1 << 0);
 
+	// Calculate constants based on the last known
+	// values of wheel diameter and distance
 	inc_mm = (wheel_diameter*M_PI)/PPR;
 	inc_rad = inc_mm/wheel_distance;
 }
@@ -109,7 +118,8 @@ sOdom_t* Read_Encoders(){
 	curr_right_enc = RIGHT.tim->CNT;
 
 	// The delta is calulated from increments from current and last encoder readings and converted to mm
-	// The cast to int16_t ensures that a jump from 0 to 65535 and vice versa won't happen
+	// The cast to int16_t ensures that a jump from 0 to 65535 and vice versa won't happen - given that
+	// the rate of reading the encoders is fast enough
 	delta_left  = (int16_t)(curr_left_enc  - last_left_enc)  * inc_mm;
 	delta_right = (int16_t)(curr_right_enc - last_right_enc) * inc_mm;
 
@@ -125,6 +135,7 @@ sOdom_t* Read_Encoders(){
 	odom.left_inc += delta_left;
 	odom.right_inc += delta_right;
 
+	// The heding angle range is -PI/2 to PI/2
 	if (odom.theta > M_PI)
 		odom.theta -= 2*M_PI;
 	else if(odom.theta < -M_PI)
@@ -136,7 +147,7 @@ sOdom_t* Read_Encoders(){
 	return &odom;
 }
 
-// Resets or initialized odometry data based on input parameter
+// Resets or initializes odometry data based on input parameter
 void Reset_Encoders(sOdom_t* new_odom){
 	last_left_enc  = 0;
 	last_right_enc = 0;
@@ -159,10 +170,12 @@ void Reset_Encoders(sOdom_t* new_odom){
 	odom.right_inc = 0;
 }
 
+// Sets the value of wheel diameter and distance used for calculating odometry data
 void Config(float diameter, float distance){
 	wheel_diameter = diameter;
 	wheel_distance = distance;
 
+	// Calculates conversions
 	inc_mm = (wheel_diameter*M_PI)/PPR;
 	inc_rad = inc_mm/wheel_distance;
 }

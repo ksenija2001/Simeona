@@ -41,7 +41,6 @@ void USART2_Init(void);
 void USART2_IRQHandler(void);
 void UART_Interrupt_Init();
 
-
 void Send_Byte(uint8_t data);
 void Send_Buffer(void);
 void Send_Command(uint8_t code, float value[], uint8_t len);
