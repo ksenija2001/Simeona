@@ -13,7 +13,7 @@ The easiest way to find out which pins we need is to export the pinout of the MC
  3. Click through the rest of the setup to generate a project which has built-in information about the board we are using
 You can now export the pinout with alternate functions from the IOC menu by clicking the Pinout drop down above the MCU.
 
-![pinout](../pictures/pinout_example.png)
+<img src="../pictures/pinout_example.png" width="700" height="500">
 
 From this we can concur which pins need to be in which alternate functions to enable the mode we need:
  - TIM1 CH1 and CH2 - PA8 and PA9 in AF1
@@ -22,13 +22,11 @@ From this we can concur which pins need to be in which alternate functions to en
  - USART2_TX and USART2_RX - PA2 and PA3 in AF7
 
 Since now we know which pins are in use and for what the shield schematic is straightforward in connecting them to the appropriate driver inputs and outputs so we can communicate with the motors and their integrated encoders.
-The software part only needs to tell the microcontroller on which port they are and in what alternate function.
+The software part only needs to tell the microcontroller which ports and pins the peripherals are using and in what alternate function.
 
-Depending on what bus the peripheral or pin used is, its appropriate clock source needs to be enabled also:
-![bus_architecture](../pictures/diagram.png)
-
-For example, since USART2 is connected to the bus APB1 its clock source is enabled through the RCC register APB1ENR by writing a 1 to the USART2EN bit:
-![APB1](../pictures/RCCAPB1ENR.png)
+Depending on what bus the peripheral or pin used is, its, and the ports, appropriate clock source needs to be enabled also.
+For example, since USART2 is connected to the bus APB1 its clock source is enabled through the RCC register APB1ENR by writing a 1 to the USART2EN bit: <br>
+<img src="../pictures/RCCAPB1ENR.png" width="500" height="100">
 
 # Main
 
@@ -46,8 +44,3 @@ Function calls used in `main.c`:
 - `void Motors_Init()` - Configures timer peripheral TIM2 channels 1 and 2 as PWM output and driver direction pins <br>
 - `void Encoders_Init()` - Configures timer peripherals TIM1 and TIM3 in Encoder Quadrature mode  <br>
 
-# Odometry
-
-# UART communication
-
-# Motor control
