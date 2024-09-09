@@ -1,11 +1,13 @@
 # Motor control 
 
-The code is divided into 3 modules, where each of them can be used by itself with minor adjustments:
+This branch of the project is responsible for the motor speed loop, executing user (ROS2) commands and calculating wheel odometry based on integrated encoders. 
+
+The code is divided into 3 modules that can be used by themselfs with minor adjustments:
 - [Odometry](Robotic/Core/Src/odom.c)
 - [UART](Robotic/Core/Src/uart.c)
 - [Motor Control](Robotic/Core/Src/motor_control.c)
 
-Each module takes advantage of different inbuilt functionalities of the Nucleo F411RE, which are also present in other Nucleo development boards and microcontrollers, in order to enable command driven movements - a Raspberry Pi mini-pc issues higher level commands.
+Each module takes advantage of different inbuilt functionalities of the Nucleo F411RE, which are also present in other STM32 development boards and microcontrollers, in order to enable command driven movements - a Raspberry Pi mini-pc issues higher level commands.
 These functionalities and how to set them up (so they actually work) are documented [here](Robotic/README.md).
 
 For a more throughout explanation on why all of these modules are needed and how they fit in the whole project take a look at my [Bachelor project](docs/Diplomski_v3.pdf).
@@ -21,10 +23,10 @@ Additional tools that provide easier debugging:
 - [Logic](https://www.saleae.com/pages/downloads) - software used with a logic analyzer device that visualizes bits being transferred
 
 STM32 microcontrollers allow the user to change peripheral functionalities based on their needs.
-For example, a speicifc timer can be used in different modes that allow it to count up, or down, or count the impulses comming from an outside source connected to it's pin.
+For example, a specific timer can be used in different modes that allow it to count up, or down, or count the impulses comming from an outside source connected to it's pin.
 
 The Nucleo development board packaging provides easy access to all of the available peripherals, and is also compatible with different Arduino and STM32 shields that expand the possibilities of the microcontroller.
-For our purposes the shield that enables the connection between the motors and their integrated encoders to the driver and to the microcontroller can be found [here](../shield).
+For our purposes the shield that enables the connection between the motors, and their integrated encoders, to the driver and to the microcontroller can be found [here](../shield).
 
 The [reference manual](../docs/NUCLEOF411RE_reference_manual.pdf) for the specific MCU in use contains all information on alternate functions, registers, overall architecture and more, and will be cited frequently. 
 
