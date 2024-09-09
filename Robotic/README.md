@@ -1,32 +1,21 @@
 # Pinout
 
-For choosing which peripherals to use for what inspect the [reference manual](../docs/NUCLEOF411RE_reference_manual.pdf). It is also important that the chosen peripherals use different pins for their alternate functions. In that way the following choices were made:
+For choosing which peripherals to use for what inspect the [reference manual](../docs/NUCLEOF411RE_reference_manual.pdf). It is also important that the chosen peripherals use different pins for the configuration of the needed alternate functions. In that way the following choices were made:
  - TIM2 - PWM mode
  - TIM1 and TIM3 - Encoder (Quadrature) mode
  - USART2 (because TIM1 is already using the TX pin of USART1)
  - TIM10 - PID timer
  - TIM11 - UART read buffer timer
 
-The easiest way to find out which pins we need is to export the pinout of the MCU from STM32CubeIDE:
- 1. File -> New -> STM32 Project
- 2. In the Commercial Part Number field type NUCLEO-F411RE and choose the only suggestion that shows up in the table
- 3. Click through the rest of the setup to generate a project which has built-in information about the board we are using
-You can now export the pinout with alternate functions from the IOC menu by clicking the Pinout drop down above the MCU.
-
-<img src="../pictures/pinout_example.png" width="700" height="500">
-
-From this we can concur which pins need to be in which alternate functions to enable the mode we need:
+From the exported Pinout with Alternate Functions we can see which pins need to be in which alternate functions to enable the mode we need for that peripheral:
  - TIM1 CH1 and CH2 - PA8 and PA9 in AF1
  - TIM2 CH1 and CH2 - PA0 and PA1 in AF1 
  - TIM3 CH1 and CH2 - PA6 and PA7 in AF2
  - USART2_TX and USART2_RX - PA2 and PA3 in AF7
 
-Since now we know which pins are in use and for what the shield schematic is straightforward in connecting them to the appropriate driver inputs and outputs so we can communicate with the motors and their integrated encoders.
-The software part only needs to tell the microcontroller which ports and pins the peripherals are using and in what alternate function.
+Since now we know which pins are in use and for what the shield schematic is straightforward in connecting them to the appropriate driver inputs and outputs so we can communicate with the motors and their integrated encoders. 
 
-Depending on what bus the peripheral or pin used is, its, and the ports, appropriate clock source needs to be enabled also.
-For example, since USART2 is connected to the bus APB1 its clock source is enabled through the RCC register APB1ENR by writing a 1 to the USART2EN bit: <br>
-<img src="../pictures/RCCAPB1ENR.png" width="500" height="100">
+Examples of how to setup these peripherals and their priorities can be found in files located [here](Core/Src).
 
 # Main
 
@@ -43,4 +32,73 @@ Function calls used in `main.c`:
 - `void PID_Odom_Interrupt_Init()` - Configures timer peripheral TIM11 with 10ms interrupt which executes PID computation and updates odometry data <br>
 - `void Motors_Init()` - Configures timer peripheral TIM2 channels 1 and 2 as PWM output and driver direction pins <br>
 - `void Encoders_Init()` - Configures timer peripherals TIM1 and TIM3 in Encoder Quadrature mode  <br>
+
+# Odometry
+
+Deadreckoning odometry calculation is done by finding the delta of the encoder impulses from the current and prior reading, which can be converted to the distance traveled by both wheels from the prior reading.
+Timer peripherals are connected to the encoders so that they 'count' the impulses made. 
+A period of 20ms was chosen.
+
+The pose of a robot whose movement is confined to a plane can be described with a 3-dimensional vector [x, y, yaw], where (x, y) are the position of the robot and yaw (theta) is the heading angle. 
+
+The structure sOdom_t represents this 3-dimensional vector together with the current speed on each motor and the current distance travelled by each wheel (needed for an unimplemnted portion of a ROS2 hardware interaface).
+
+```
+// Structure for representing odometry data
+typedef struct {
+	float x;
+	float y;
+	float theta;
+	float left_speed;
+	float right_speed;
+	float left_inc;
+	float right_inc;
+} sOdom_t;
+```
+
+# UART
+
+Communication between the microcontroller and mini-PC is handled by the serial UART protocol. 
+Both devices can transmit or recive predefined messages which they know how to decode:
+- Odometry information - 0x4F
+- Anckowledge - 0x41
+- Speed command - 0x53
+- Init odometry - 0x49
+- Paramter config - 0x43
+
+Format of all messages:
+
+| Start | Code | Length | Data | Stop |
+| :-: | :-: | :-: | :-: | :-: |
+| 0xFA | 0xXX | 0xXX | 0xXX ... 0xXX | 0xFB |
+
+The data field can be from 4 to 28 bytes.
+
+UART receive buffer is checked every 1ms. The output buffer is emptied every time there is a whole command or response to be transmitted.
+
+# Motor Control
+
+Motor control is responsible for PID control of motor speed, as well as PWM conversion and motor direction control.
+
+PID control is calculted every 40ms and sent to the motor.
+The target speed that PID is trying to achieve and hold is changed based on user speed commands.
+
+A motor is represented by a structure together with its PID parameters:
+```
+// Structure for representing a motor and it's PID values
+typedef struct sMotor_t {
+	float target_speed;
+	float current_speed;
+	float control_PWM;
+	float errors[3];
+	float Kp;
+	float Ki;
+	float Kd;
+	void (*Compute_PID)(struct sMotor_t *self);
+} sMotor_t;
+
+// Needed for the above structure to be defined correctly
+void Compute_PID(sMotor_t *self);
+```
+
 
